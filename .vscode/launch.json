@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Ray Tracer",
+      "request": "launch",
+      "mainClass": "com.raytracer.Main",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole"
+    },
+    {
+      "type": "java",
+      "name": "Ray Tracer (headless)",
+      "request": "launch",
+      "mainClass": "com.raytracer.Main",
+      "args": "--headless",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole"
+    }
+  ]
+}
