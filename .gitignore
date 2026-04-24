@@ -1,0 +1,12 @@
+# Gradle / Java build artifacts
+build/
+.gradle/
+bin/
+out/
+*.class
+
+# VSCode logs (keep settings.json, launch.json, extensions.json)
+.vscode/*.log
+
+# Render output — anchored so the legacy C++ reference PPM is preserved
+/raytracing.ppm

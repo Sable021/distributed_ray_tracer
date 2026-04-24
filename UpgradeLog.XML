@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?><?xml-stylesheet type='text/xsl' href='_UpgradeReport_Files/UpgradeReport.xslt'?><UpgradeLog>
+<Properties><Property Name="Solution" Value="Distributed Ray Tracer">
+</Property><Property Name="Solution File" Value="C:\Users\Wong Fu Jie\Documents\School Work\CS 4247\Lab 2\Distributed Ray Tracer\Distributed Ray Tracer.sln">
+</Property><Property Name="User Options File" Value="C:\Users\Wong Fu Jie\Documents\School Work\CS 4247\Lab 2\Distributed Ray Tracer\Distributed Ray Tracer.suo">
+</Property><Property Name="Date" Value="Sunday, 4 March, 2012">
+</Property><Property Name="Time" Value="16:18 PM">
+</Property></Properties><Event ErrorLevel="0" Project="" Source="Distributed Ray Tracer.sln" Description="File successfully backed up as C:\Users\Wong Fu Jie\Documents\School Work\CS 4247\Lab 2\Distributed Ray Tracer\Distributed Ray Tracer.sln.old">
+</Event><Event ErrorLevel="0" Project="" Source="Distributed Ray Tracer.suo" Description="File successfully backed up as C:\Users\Wong Fu Jie\Documents\School Work\CS 4247\Lab 2\Distributed Ray Tracer\Distributed Ray Tracer.suo.old">
+</Event><Event ErrorLevel="0" Project="Distributed Ray Tracer" Source="Distributed Ray Tracer\Distributed Ray Tracer.vcproj" Description="Converting project file 'C:\Users\Wong Fu Jie\Documents\School Work\CS 4247\Lab 2\Distributed Ray Tracer\Distributed Ray Tracer\Distributed Ray Tracer.vcproj'.">
+</Event><Event ErrorLevel="1" Project="Distributed Ray Tracer" Source="Distributed Ray Tracer\Distributed Ray Tracer.vcproj" Description="This application has been updated to include settings related to the User Account Control (UAC) feature of Windows Vista. By default, when run on Windows Vista with UAC enabled, this application is marked to run with the same privileges as the process that launched it. This marking also disables the application from running with virtualization. You can change UAC related settings from the Property Pages of the project.">
+</Event><Event ErrorLevel="1" Project="Distributed Ray Tracer" Source="Distributed Ray Tracer\Distributed Ray Tracer.vcproj" Description="VCWebServiceProxyGeneratorTool is no longer supported. The tool has been removed from your project settings.">
+</Event><Event ErrorLevel="1" Project="Distributed Ray Tracer" Source="Distributed Ray Tracer\Distributed Ray Tracer.vcproj" Description="Attribute 'Detect64BitPortabilityProblems' of 'VCCLCompilerTool' is not supported in this version and has been removed during conversion.">
+</Event><Event ErrorLevel="0" Project="Distributed Ray Tracer" Source="Distributed Ray Tracer\Distributed Ray Tracer.vcproj" Description="Web deployment to the local IIS server is no longer supported. The Web Deployment build tool has been removed from your project settings.">
+</Event><Event ErrorLevel="1" Project="Distributed Ray Tracer" Source="Distributed Ray Tracer\Distributed Ray Tracer.vcproj" Description="Attribute 'Detect64BitPortabilityProblems' of 'VCCLCompilerTool' is not supported in this version and has been removed during conversion.">
+</Event><Event ErrorLevel="0" Project="Distributed Ray Tracer" Source="Distributed Ray Tracer\Distributed Ray Tracer.vcproj" Description="Done converting to new project file 'C:\Users\Wong Fu Jie\Documents\School Work\CS 4247\Lab 2\Distributed Ray Tracer\Distributed Ray Tracer\Distributed Ray Tracer.vcxproj'.">
+</Event><Event ErrorLevel="3" Project="Distributed Ray Tracer" Source="Distributed Ray Tracer\Distributed Ray Tracer.vcproj" Description="Converted">
+</Event><Event ErrorLevel="0" Project="" Source="Distributed Ray Tracer.sln" Description="Solution converted successfully">
+</Event><Event ErrorLevel="3" Project="" Source="Distributed Ray Tracer.sln" Description="Converted">
+</Event></UpgradeLog>
