@@ -10,6 +10,12 @@ public final class Renderer {
 
     public enum Mode { SUPERSAMPLED, DEPTH_OF_FIELD }
 
+    /** Optional callback invoked after each fully-rendered scanline. */
+    @FunctionalInterface
+    public interface RowListener {
+        void onRowComplete(int row, int[] pixels, int width);
+    }
+
     // ---- Image / camera constants (exact C++ values) ----
     public static final int SCR_WIDTH  = 1024;
     public static final int SCR_HEIGHT = 768;
@@ -34,6 +40,11 @@ public final class Renderer {
     private final int gridX, gridY;
     private final int width, height;
     private final int maxDepth;
+    private RowListener rowListener;
+
+    public void setRowListener(RowListener listener) {
+        this.rowListener = listener;
+    }
 
     public Renderer(Scene scene, Mode mode, int gridX, int gridY, int maxDepth) {
         this.scene = scene;
@@ -107,6 +118,7 @@ public final class Renderer {
                 pixels[i * width + j] = packArgb(acc);
             }
             prog.tick(i);
+            if (rowListener != null) rowListener.onRowComplete(i, pixels, width);
         }
         prog.done();
         return pixels;
@@ -184,6 +196,7 @@ public final class Renderer {
                 pixels[i * width + j] = packArgb(acc);
             }
             prog.tick(i);
+            if (rowListener != null) rowListener.onRowComplete(i, pixels, width);
         }
         prog.done();
         return pixels;

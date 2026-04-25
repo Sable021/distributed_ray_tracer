@@ -1,31 +1,40 @@
 package com.raytracer;
 
+import javafx.application.Application;
+
 import java.nio.file.Path;
 
 /**
- * Entry point. Phase 3 supports headless rendering only — `--headless` is required.
- * JavaFX display comes in Phase 4.
+ * Entry point. Routes to either the headless renderer or the JavaFX Display
+ * depending on the --headless flag.
+ *
+ * Headless path returns before Application.launch is invoked, so no javafx.*
+ * class gets loaded on display-less environments.
  */
 public class Main {
 
-    public static void main(String[] args) throws Exception {
-        Args parsed = Args.parse(args);
+    public static void main(String[] argv) throws Exception {
+        Args args = Args.parse(argv);
 
-        if (parsed.printUsage) {
+        if (args.printUsage) {
             printUsage();
             return;
         }
-        if (!parsed.headless) {
-            System.err.println("Phase 3: --headless is required (JavaFX display lands in Phase 4).");
-            printUsage();
-            System.exit(1);
+
+        if (args.headless) {
+            runHeadless(args);
+            return;
         }
 
+        Application.launch(Display.class, argv);
+    }
+
+    private static void runHeadless(Args args) throws Exception {
         System.out.printf("Config: mode=%s grid=%dx%d maxDepth=%d%n",
-                parsed.mode, parsed.gridX, parsed.gridY, parsed.maxDepth);
+                args.mode, args.gridX, args.gridY, args.maxDepth);
 
         Scene scene = Scene.initialise();
-        Renderer renderer = new Renderer(scene, parsed.mode, parsed.gridX, parsed.gridY, parsed.maxDepth);
+        Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY, args.maxDepth);
 
         int[] pixels = renderer.render();
 
@@ -35,51 +44,11 @@ public class Main {
     }
 
     private static void printUsage() {
-        System.out.println("Usage: ./gradlew run --args=\"--headless [--mode=dof] [--quick] [--grid=N] [--depth=N]\"");
-        System.out.println("  --headless         write raytracing.ppm only (required for Phase 3)");
+        System.out.println("Usage: ./gradlew run --args=\"[--headless] [--mode=dof] [--quick] [--grid=N] [--depth=N]\"");
+        System.out.println("  --headless         skip JavaFX, write raytracing.ppm only");
         System.out.println("  --mode=supersampled|dof   rendering mode (default supersampled)");
         System.out.println("  --quick            fast smoke test: grid=1, depth=2");
         System.out.println("  --grid=N           supersample grid side (default 8)");
         System.out.println("  --depth=N          max recursion depth (default 6)");
-    }
-
-    // ------------------------------------------------------------
-    // Args parsing — tiny, no library
-    // ------------------------------------------------------------
-
-    private static final class Args {
-        boolean headless = false;
-        boolean printUsage = false;
-        Renderer.Mode mode = Renderer.Mode.SUPERSAMPLED;
-        int gridX = 8;
-        int gridY = 8;
-        int maxDepth = 6;
-
-        static Args parse(String[] argv) {
-            Args a = new Args();
-            for (String s : argv) {
-                switch (s) {
-                    case "--headless" -> a.headless = true;
-                    case "--help", "-h" -> a.printUsage = true;
-                    case "--quick" -> {
-                        a.gridX = 1; a.gridY = 1; a.maxDepth = 2;
-                    }
-                    case "--mode=supersampled" -> a.mode = Renderer.Mode.SUPERSAMPLED;
-                    case "--mode=dof"          -> a.mode = Renderer.Mode.DEPTH_OF_FIELD;
-                    default -> {
-                        if (s.startsWith("--grid=")) {
-                            int n = Integer.parseInt(s.substring(7));
-                            a.gridX = n; a.gridY = n;
-                        } else if (s.startsWith("--depth=")) {
-                            a.maxDepth = Integer.parseInt(s.substring(8));
-                        } else {
-                            System.err.println("Unknown arg: " + s);
-                            a.printUsage = true;
-                        }
-                    }
-                }
-            }
-            return a;
-        }
     }
 }
