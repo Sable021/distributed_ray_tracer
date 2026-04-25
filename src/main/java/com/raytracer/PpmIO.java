@@ -6,6 +6,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 
+/**
+ * Writer for the binary P6 PPM image format. PPM is the renderer's native output and the
+ * fastest path because no encoding library is required — just a short ASCII header followed
+ * by raw RGB bytes.
+ *
+ * <p>For PNG/BMP output see {@link ImageOut}, which delegates to this class for the
+ * {@code ppm} format and uses {@link javax.imageio.ImageIO} for everything else.
+ */
 public final class PpmIO {
 
     private PpmIO() {}

@@ -3,13 +3,20 @@ package com.raytracer;
 import static com.raytracer.SceneObject.ObjectType.*;
 
 /**
- * Hardcoded scene description. Mirrors the C++ initialise_scene() layout exactly so that
- * material/geometry tuning (including the quirks in intersection math) keep working.
+ * Hardcoded scene description. Mirrors the C++ {@code initialise_scene()} layout exactly so
+ * material and geometry tuning (including the quirks baked into the intersection math) keep
+ * producing the reference image.
+ *
+ * <p>Construction is via the static factory {@link #initialise()}, which builds and returns
+ * a fully-populated immutable {@code Scene}. Per-object data lives on {@link SceneObject},
+ * indexed 0..16 as documented inside the factory.
  */
 public final class Scene {
 
-    public static final int SIZE        = 20;   // array length — matches C++ `new Object[20]`
-    public static final int NUM_ACTIVE  = 17;   // objects 0..16 are populated
+    /** Backing array length. Matches the C++ {@code new Object[20]} allocation. */
+    public static final int SIZE        = 20;
+    /** Number of populated entries; objects at indices 0..16 are valid scene primitives. */
+    public static final int NUM_ACTIVE  = 17;
 
     /**
      * Primary rays skip object 16 (the back-wall area light). Without this the light would
@@ -17,7 +24,9 @@ public final class Scene {
      */
     public static final int SKIP_AT_DEPTH_1 = 16;
 
+    /** All scene primitives (length {@link #SIZE}). Use {@link #numActive} to bound iteration. */
     public final SceneObject[] objects;
+    /** Number of valid entries in {@link #objects}; equals {@link #NUM_ACTIVE}. */
     public final int numActive;
 
     private Scene(SceneObject[] objects, int numActive) {
@@ -30,6 +39,11 @@ public final class Scene {
         return idx == 15 || idx == 16;
     }
 
+    /**
+     * Build the canonical scene: floor + 4 walls/ceiling, 4 spheres (one mirror, two stacked
+     * solids, one refractive glass), a coloured tetrahedron, and 2 area lights (a ceiling
+     * panel and an off-screen back-wall light for indirect illumination).
+     */
     public static Scene initialise() {
         SceneObject[] o = new SceneObject[SIZE];
         for (int i = 0; i < SIZE; i++) o[i] = new SceneObject();

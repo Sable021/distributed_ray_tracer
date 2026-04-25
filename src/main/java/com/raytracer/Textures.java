@@ -2,6 +2,16 @@ package com.raytracer;
 
 import java.util.Random;
 
+/**
+ * Procedural surface textures: 3-D Perlin noise plus a small library of colour functions
+ * (checkerboard, mixed checks, stripes, Perlin-driven colourful) that {@link Scene} dispatches
+ * to from {@link Scene#getObjectColour}.
+ *
+ * <p>The Perlin permutation table {@code P} and gradient table {@code G3} are populated once
+ * in a {@code static {}} block with a fixed seed so noise output is deterministic and stable
+ * across runs. (The original C++ code re-initialised these tables on every {@code noise()}
+ * call — a bug that happened to be harmless because the same seed produced the same tables.)
+ */
 public final class Textures {
 
     private Textures() {}
@@ -49,6 +59,11 @@ public final class Textures {
     // Noise function (3-D Perlin noise)
     // -------------------------------------------------------------------------
 
+    /**
+     * Classic Perlin 3-D noise sampled at the world-space point {@code vec}.
+     * Returns a value in roughly {@code [-1, 1]}. Continuous and smooth, with detail at
+     * unit world-space frequency.
+     */
     public static double noise(double[] vec) {
         // --- setup: fractional decomposition for each axis ---
         double tx = vec[0] + NN;
@@ -95,8 +110,11 @@ public final class Textures {
         return lerp(sz, c, d);
     }
 
+    /** Smoothstep s-curve: 3t² - 2t³. Used to round off the trilinear interpolation between grid cells. */
     private static double sCurve(double t) { return t * t * (3.0 - 2.0 * t); }
+    /** Linear interpolation between a and b by t∈[0,1]. */
     private static double lerp(double t, double a, double b) { return a + t * (b - a); }
+    /** Dot product of a 3-D gradient vector q with a 3-D offset (rx, ry, rz). */
     private static double at3(double[] q, double rx, double ry, double rz) {
         return rx * q[0] + ry * q[1] + rz * q[2];
     }
@@ -105,6 +123,10 @@ public final class Textures {
     // Procedural texture functions (out-param colour[3])
     // -------------------------------------------------------------------------
 
+    /**
+     * Two-tone checkerboard texture. Cell size is 1/5 of a world unit, switching pattern
+     * across the half-space {@code x >= 0} so the floor's left and right halves don't repeat.
+     */
     public static void checkerboard(double[] intersect, double[] colour) {
         int cx = (int)(5 * intersect[0]);
         int cy = (int)(5 * intersect[1]);
@@ -128,7 +150,10 @@ public final class Textures {
         }
     }
 
-    /** Checkerboard with sin-perturbation of the intersection point */
+    /**
+     * Variant of {@link #checkerboard} that warps the input through {@code sin()} per axis
+     * before tiling, producing a softer, slightly distorted check pattern. Used on the floor.
+     */
     public static void mixChecks(double[] intersect, double[] colour) {
         double[] tp = new double[]{
             Math.sin(intersect[0]),
@@ -159,8 +184,12 @@ public final class Textures {
     }
 
     /**
-     * Map normalized intersect direction to |sin(component)| per channel.
-     * NOTE: mutates intersect in place (normalizes it) — matches C++ behaviour.
+     * Maps the normalized intersection direction to {@code |sin(component)|} per RGB channel,
+     * giving smooth rainbow-style colour fields.
+     *
+     * <p><b>Side effect:</b> mutates {@code intersect} in place (normalizes it). This is
+     * preserved from the C++ source even though it would normally be a bug — callers
+     * downstream rely on the normalized value.
      */
     public static void colourful(double[] intersect, double[] colour) {
         VecMath.normalize(intersect);
@@ -168,7 +197,11 @@ public final class Textures {
             colour[i] = Math.abs(Math.sin(intersect[i]));
     }
 
-    /** Wood-grain-style stripe texture used on the tetrahedron */
+    /**
+     * Wood-grain-style stripe texture used on the four tetrahedron faces. Builds a banded
+     * pattern by computing a polar radius from the sin-warped intersect, modulating it with
+     * angle, and quantising to one of two preset palette colours.
+     */
     public static void strips(double[] intersect, double[] colour) {
         final double R_LIGHT = 0.82, G_LIGHT = 0.67, B_LIGHT = 0.56;
         final double R_DARK  = 0.52, G_DARK  = 0.36, B_DARK  = 0.25;

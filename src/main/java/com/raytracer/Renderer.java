@@ -3,16 +3,41 @@ package com.raytracer;
 import static com.raytracer.SceneObject.ObjectType.*;
 
 /**
- * Top-level pixel loop. Produces an ARGB int buffer in bottom-up row order
- * (row 0 = bottom of screen). PpmIO.write handles the Y-flip to top-down PPM output.
+ * Top-level pixel loop, owning the camera + screen-plane geometry and dispatching to
+ * the appropriate render mode.
+ *
+ * <p>For each pixel, fires {@code gridX * gridY} jittered primary rays through
+ * {@link RayTracer#rayTrace} and averages the resulting colours (supersampling). The
+ * depth-of-field mode additionally jitters the ray origin across a small lens
+ * aperture aimed at a focal plane, producing the bokeh effect.
+ *
+ * <p>The output buffer is row-major ARGB ints in <b>bottom-up</b> order — row 0 is the
+ * bottom of the image. {@link PpmIO#write} flips on output, and {@link Display}
+ * inverts the row index when uploading to the JavaFX {@code WritableImage}.
  */
 public final class Renderer {
 
-    public enum Mode { SUPERSAMPLED, DEPTH_OF_FIELD }
+    /** Render strategy selector. */
+    public enum Mode {
+        /** Standard supersampled render: jittered NxN rays per pixel from the eye through the screen plane. */
+        SUPERSAMPLED,
+        /** Depth-of-field render: jitter ray origin across a lens aperture aimed at a focal plane. */
+        DEPTH_OF_FIELD
+    }
 
-    /** Optional callback invoked after each fully-rendered scanline. */
+    /**
+     * Optional callback invoked after each fully-rendered scanline. Used by
+     * {@link Display} to upload completed rows to the JavaFX {@code WritableImage} for
+     * progressive display.
+     */
     @FunctionalInterface
     public interface RowListener {
+        /**
+         * @param row    index of the just-completed row (0 = bottom of image)
+         * @param pixels the full pixel buffer (caller must not retain a reference;
+         *               copy out the row of interest before returning)
+         * @param width  image width in pixels
+         */
         void onRowComplete(int row, int[] pixels, int width);
     }
 
@@ -42,10 +67,22 @@ public final class Renderer {
     private final int maxDepth;
     private RowListener rowListener;
 
+    /**
+     * Register a callback invoked after each scanline completes. Pass {@code null} to
+     * remove the existing listener. Listeners run on the render thread, so cheap work
+     * only — long handlers will stall the inner loop.
+     */
     public void setRowListener(RowListener listener) {
         this.rowListener = listener;
     }
 
+    /**
+     * @param scene    pre-initialised scene to render
+     * @param mode     {@link Mode#SUPERSAMPLED} or {@link Mode#DEPTH_OF_FIELD}
+     * @param gridX    supersample (and DoF lens) grid width — total rays per pixel = gridX*gridY
+     * @param gridY    supersample (and DoF lens) grid height
+     * @param maxDepth maximum recursion depth for reflected/refracted rays
+     */
     public Renderer(Scene scene, Mode mode, int gridX, int gridY, int maxDepth) {
         this.scene = scene;
         this.mode = mode;
@@ -65,9 +102,17 @@ public final class Renderer {
         }
     }
 
+    /** @return image width in pixels (1024). */
     public int getWidth()  { return width; }
+    /** @return image height in pixels (768). */
     public int getHeight() { return height; }
 
+    /**
+     * Run the render. Synchronous: returns only after every pixel has been shaded.
+     * Dispatches to the appropriate strategy based on the configured {@link Mode}.
+     *
+     * @return ARGB pixel buffer in bottom-up row order; length {@code width * height}
+     */
     public int[] render() {
         return switch (mode) {
             case SUPERSAMPLED    -> renderSupersampled();
@@ -206,6 +251,7 @@ public final class Renderer {
     // Helpers
     // -------------------------------------------------------------------------
 
+    /** Pack an RGB triple in [0,1] into a 0xFFRRGGBB int, clamping each channel. */
     private static int packArgb(double[] c) {
         int r = clamp255(c[0]);
         int g = clamp255(c[1]);
@@ -213,6 +259,7 @@ public final class Renderer {
         return 0xFF000000 | (r << 16) | (g << 8) | b;
     }
 
+    /** Clamp a normalised colour component {@code v ∈ [0, 1]} into the byte range [0, 255]. */
     private static int clamp255(double v) {
         if (v <= 0.0) return 0;
         if (v >= 1.0) return 255;

@@ -1,5 +1,18 @@
 package com.raytracer;
 
+/**
+ * Sampling helpers used by the renderer's distributed-ray-tracing features.
+ *
+ * <p>Two responsibilities, kept together because they share the same stratified
+ * grid concept:
+ * <ul>
+ *   <li><b>Area-light grids</b> — pre-compute a regular grid of points across each
+ *       area light's surface so {@link RayTracer} can take stratified shadow samples.</li>
+ *   <li><b>Glossy reflection grids</b> — given a perfect-reflection direction, build
+ *       a grid of jittered alternative directions perpendicular to the reflection
+ *       vector, used to soften mirror reflections into glossy ones.</li>
+ * </ul>
+ */
 public final class Sampling {
 
     private Sampling() {}

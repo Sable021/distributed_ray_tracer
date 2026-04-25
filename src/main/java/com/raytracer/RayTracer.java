@@ -2,9 +2,22 @@ package com.raytracer;
 
 import static com.raytracer.SceneObject.ObjectType.*;
 
-/** Recursive shader. One instance per render; holds the scene and max-depth config. */
+/**
+ * Recursive Phong shader with reflection, refraction, total-internal-reflection, glossy
+ * reflection, and area-light soft shadows.
+ *
+ * <p>Public entry point is {@link #rayTrace}, which is invoked once per primary ray per
+ * pixel sample by {@link Renderer}. {@code rayTrace} dispatches to {@link #intersectScene}
+ * to find the nearest hit, then to {@link #shadeObject} (Phong) plus recursive
+ * {@code rayTrace} calls along reflected/refracted directions until {@code maxDepth} is
+ * reached.
+ *
+ * <p>One instance per render; immutable after construction (scene and configuration are
+ * fixed).
+ */
 public final class RayTracer {
 
+    /** Sentinel "no hit yet" distance — larger than any plausible scene t-value. */
     private static final double LARGE_FLOAT = 99_999_999.0;
 
     /** Global ambient added to every shaded point — matches C++ global_amb. */
@@ -17,6 +30,12 @@ public final class RayTracer {
     private final int maxDepth;
     private final int gridX, gridY;   // area-light stratification grid (matches supersample grid)
 
+    /**
+     * @param scene    pre-initialised scene to render
+     * @param maxDepth maximum recursion depth for reflected/refracted rays
+     * @param gridX    supersample/area-light stratification grid width
+     * @param gridY    supersample/area-light stratification grid height
+     */
     public RayTracer(Scene scene, int maxDepth, int gridX, int gridY) {
         this.scene = scene;
         this.maxDepth = maxDepth;
@@ -28,7 +47,14 @@ public final class RayTracer {
     // Intersection dispatch
     // -------------------------------------------------------------------------
 
-    /** Returns the nearest hit object index (writing the point into outIntersect), or -1. */
+    /**
+     * Find the nearest object hit by {@code ray}, writing the intersection point into
+     * {@code outIntersect}. Returns the object index, or -1 if the ray misses everything.
+     *
+     * <p>{@code depth == 1} (primary rays from the camera) skips
+     * {@link Scene#SKIP_AT_DEPTH_1} so the front-facing area light doesn't eclipse the
+     * scene; secondary rays still see it.
+     */
     public int intersectScene(Ray ray, double[] outIntersect, int depth) {
         int objectIndex = -1;
         double nearestT = LARGE_FLOAT;
@@ -52,7 +78,14 @@ public final class RayTracer {
         return objectIndex;
     }
 
-    /** Returns t, or -1.0 on miss. Applies the bounded-quad test for indices 15/16. */
+    /**
+     * Test {@code ray} against a single scene object by index, dispatching on its type.
+     * Indices 15/16 are area-light "bounded quads" — infinite planes additionally clipped
+     * to a rectangular region, so a plane hit is rejected if it falls outside the corner
+     * extents stored on the object.
+     *
+     * @return parametric distance along the ray, or -1.0 on miss
+     */
     public double intersectObject(Ray ray, int index) {
         SceneObject obj = scene.objects[index];
         if (obj.type == UNASSIGNED) return -1.0;
@@ -93,6 +126,29 @@ public final class RayTracer {
     // Recursive shading
     // -------------------------------------------------------------------------
 
+    /**
+     * Recursively shade the colour seen along {@code ray}.
+     *
+     * <p>Algorithm at a glance:
+     * <ol>
+     *   <li>Find the nearest hit object via {@link #intersectScene}.</li>
+     *   <li>If it's a light, return white. If it misses, return black.</li>
+     *   <li>Compute the local Phong shading via {@link #shadeObject}.</li>
+     *   <li>If the surface is refractive and depth allows, recurse along the
+     *       refracted direction (handling total internal reflection).</li>
+     *   <li>If the surface is reflective (and we're not inside a medium), recurse
+     *       along the (possibly glossy-jittered) reflected direction.</li>
+     *   <li>Combine local + reflection*kr + refraction*kt into {@code outColour}.</li>
+     * </ol>
+     *
+     * @param ray       ray to trace
+     * @param depth     current recursion depth (primary rays start at 1)
+     * @param rindex    refractive index of the medium the ray is currently inside
+     * @param outColour caller-owned RGB[3] receiving the shaded colour
+     * @param inside    true if the ray is travelling inside a refractive object
+     * @param rayNum    sample index used to deterministically pick a stratified
+     *                  area-light/glossy sub-cell
+     */
     public void rayTrace(Ray ray, int depth, double rindex,
                          double[] outColour, boolean inside, int rayNum) {
         if (depth > maxDepth) {
@@ -181,6 +237,22 @@ public final class RayTracer {
     // Phong shading (point + area lights)
     // -------------------------------------------------------------------------
 
+    /**
+     * Compute Phong-shaded local colour at {@code intersect} on object {@code index}.
+     *
+     * <p>Iterates over every light in the scene. Point lights ({@code type == SPHERE})
+     * emit a single shadow ray. Area lights ({@code type == PLANE}) take
+     * {@link #AREA_LIGHT_SUB_SAMPLES} stratified jittered samples across the light's
+     * surface for soft shadows. Both contribute diffuse + specular terms; opaque
+     * occluders fully shadow, refractive occluders attenuate by 0.6 per hit. A small
+     * {@link #GLOBAL_AMB} ambient term is always added.
+     *
+     * <p>Note the {@code Math.max(0, V·R)} clamp before {@code Math.pow}: Java's
+     * {@code Math.pow} returns {@code NaN} for a negative base with a non-integer
+     * exponent, which would produce black-pixel artifacts under glancing-angle
+     * highlights. The C++ original got away without the clamp because C's {@code pow}
+     * returns 0 instead.
+     */
     private void shadeObject(int index, double[] intersect, double[] V,
                              double[] outColour, int rayNum) {
         double[] N = new double[3];

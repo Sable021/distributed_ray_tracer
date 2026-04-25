@@ -12,12 +12,21 @@ import javafx.stage.Stage;
 import java.nio.file.Path;
 
 /**
- * JavaFX entry. Hosts a 1024x768 window, runs the Renderer on a background platform thread,
- * and uploads completed scanlines into a WritableImage via Platform.runLater. Writes the same
- * raytracing.ppm as the headless path on completion.
+ * JavaFX entry. Hosts a 1024x768 window backed by a {@link WritableImage}, runs the
+ * {@link Renderer} on a background platform thread, and uploads each completed scanline
+ * into the image via {@link Platform#runLater(Runnable)} so the picture fills in
+ * progressively as it renders.
+ *
+ * <p>On completion, writes the same image file as the headless path (via
+ * {@link ImageOut#write}) and updates the window title with the elapsed time. Render
+ * thread is a daemon so closing the window kills the JVM cleanly even mid-render.
  */
 public class Display extends Application {
 
+    /**
+     * JavaFX lifecycle entry. Builds the window, kicks off the render thread, and
+     * returns immediately — rendering proceeds asynchronously.
+     */
     @Override
     public void start(Stage stage) {
         Args args = Args.parse(getParameters().getRaw().toArray(new String[0]));

@@ -5,14 +5,23 @@ import javafx.application.Application;
 import java.nio.file.Path;
 
 /**
- * Entry point. Routes to either the headless renderer or the JavaFX Display
- * depending on the --headless flag.
+ * Application entry point.
  *
- * Headless path returns before Application.launch is invoked, so no javafx.*
- * class gets loaded on display-less environments.
+ * <p>Routes to one of two paths depending on the {@code --headless} flag:
+ * <ul>
+ *   <li><b>Headless:</b> {@link #runHeadless} synchronously renders and writes the
+ *       output file. No JavaFX class is touched, making this safe to run on
+ *       display-less CI machines.</li>
+ *   <li><b>Default:</b> hands off to {@link Application#launch(Class, String...)}, which
+ *       constructs a {@link Display} and renders progressively into a JavaFX window.</li>
+ * </ul>
+ *
+ * <p>The {@code --headless} branch returns <b>before</b> any reference to a {@code javafx.*}
+ * class is evaluated, so the JVM never class-loads JavaFX on headless runs.
  */
 public class Main {
 
+    /** Standard process entry point. See {@link Args#parse} for the supported flags. */
     public static void main(String[] argv) throws Exception {
         Args args = Args.parse(argv);
 
@@ -29,6 +38,11 @@ public class Main {
         Application.launch(Display.class, argv);
     }
 
+    /**
+     * Initialise the scene, run a synchronous render, and write the output file. Logs
+     * configuration and the absolute output path to stdout. Intended for CI / automation
+     * use where no display is available.
+     */
     private static void runHeadless(Args args) throws Exception {
         System.out.printf("Config: mode=%s grid=%dx%d maxDepth=%d%n",
                 args.mode, args.gridX, args.gridY, args.maxDepth);
@@ -42,6 +56,7 @@ public class Main {
         System.out.println("Wrote " + out.toAbsolutePath());
     }
 
+    /** Print the supported CLI flags and a one-line description of each to stdout. */
     private static void printUsage() {
         System.out.println("Usage: ./gradlew run --args=\"[--headless] [--mode=dof] [--quick] [--grid=N] [--depth=N] [--format=ppm|png|bmp]\"");
         System.out.println("  --headless         skip JavaFX, write image file only");

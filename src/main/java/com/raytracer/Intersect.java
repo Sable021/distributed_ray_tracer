@@ -1,15 +1,33 @@
 package com.raytracer;
 
+/**
+ * Ray–primitive intersection tests, plus surface-normal computation, mirror reflection,
+ * and Snell's-law refraction.
+ *
+ * <p>All intersection methods return the parametric distance {@code t} along the ray
+ * ({@code point + t * direct} is the hit), or {@code -1.0} for a miss. The
+ * {@link #EPSILON} threshold filters out self-intersections (a reflected/refracted ray
+ * leaving an object should not immediately hit the same surface).
+ */
 public final class Intersect {
 
     private Intersect() {}
 
+    /** Minimum t-value treated as a real hit; smaller values are discarded as self-intersections. */
     private static final double EPSILON = 0.0001;
 
     // -------------------------------------------------------------------------
     // Intersection tests — return parameter t, or -1.0 if no hit
     // -------------------------------------------------------------------------
 
+    /**
+     * Ray–sphere intersection via the quadratic formula.
+     *
+     * <p>Preserves a quirk from the original C++ source: the constant term is
+     * {@code dot(V,V) - 2*r^2} rather than the textbook {@code dot(V,V) - r^2}. The scene
+     * geometry was tuned around this incorrect formula, so changing it would distort the
+     * reference image.
+     */
     public static double raySphereIntersect(Ray ray, SceneObject sphere) {
         double[] V = new double[3];
         // V = ray.point - sphere.centre
@@ -35,7 +53,12 @@ public final class Intersect {
         return t1;
     }
 
-    /** Möller–Trumbore via Cramer's rule with barycentric test */
+    /**
+     * Ray–triangle intersection by solving the 3-unknown system
+     * {@code v0 + beta*(v1-v0) + gamma*(v2-v0) = origin + t*direction} via Cramer's rule.
+     * The hit is accepted only when the barycentric coordinates lie inside the triangle
+     * ({@code beta > 0}, {@code gamma > 0}, {@code beta + gamma < 1}).
+     */
     public static double rayTriIntersect(Ray ray, SceneObject tri) {
         double[][] mA     = new double[3][3];
         double[][] mBeta  = new double[3][3];
@@ -69,6 +92,12 @@ public final class Intersect {
         return -1.0;
     }
 
+    /**
+     * Ray–plane intersection. Returns the parametric distance along the ray to the plane
+     * defined by {@code plane.vectors[0]} (normal) and {@code plane.dist} (signed distance
+     * from origin), or {@code -1.0} if the ray is parallel to the plane or hits behind the
+     * origin.
+     */
     public static double rayPlaneIntersect(Ray ray, SceneObject plane) {
         double denom = VecMath.dot(plane.vectors[0], ray.direct);
         if (denom == 0.0) return -1.0;  // parallel
@@ -82,6 +111,11 @@ public final class Intersect {
     // Normal, reflection, refraction
     // -------------------------------------------------------------------------
 
+    /**
+     * Compute the unit surface normal at {@code intersect} for the given object.
+     * Plane and triangle normals are stored on the object directly; sphere normals are
+     * derived from {@code (intersect - centre) / radius}.
+     */
     public static void getNormal(SceneObject obj, double[] intersect, double[] outNormal) {
         switch (obj.type) {
             case PLANE    -> VecMath.copy(obj.vectors[0], outNormal);
@@ -96,6 +130,10 @@ public final class Intersect {
         VecMath.normalize(outNormal);
     }
 
+    /**
+     * Mirror-reflection direction for an incident ray hitting a surface with the given normal.
+     * Computed as {@code incident - 2 * (incident · normal) * normal} and normalized.
+     */
     public static void reflection(double[] incident, double[] normal, double[] outRefl) {
         double iDotN = VecMath.dot(incident, normal);
         outRefl[0] = incident[0] - 2 * iDotN * normal[0];
@@ -104,7 +142,14 @@ public final class Intersect {
         VecMath.normalize(outRefl);
     }
 
-    /** Returns false for total internal reflection (caller should fall back to reflection) */
+    /**
+     * Snell's-law refracted direction for a ray crossing from a medium with refractive index
+     * {@code indexI} into one with index {@code indexR}.
+     *
+     * <p>Returns {@code false} if the angle exceeds the critical angle for the index ratio,
+     * indicating total internal reflection. In that case the caller should fall back to
+     * mirror reflection ({@link #reflection}).
+     */
     public static boolean refraction(double[] incident, double[] normal,
                                      double indexI, double indexR, double[] outRefr) {
         double iDotN  = VecMath.dot(incident, normal);
