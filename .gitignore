@@ -10,3 +10,5 @@ out/
 
 # Render output — anchored to root so legacy/cpp reference PPM is preserved
 /*.ppm
+/*.png
+/*.bmp

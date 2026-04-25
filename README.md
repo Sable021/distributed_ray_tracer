@@ -43,6 +43,15 @@ Renders with a simulated lens aperture, producing a defocused background effect.
 
 Renders with a 1x1 sample grid and max depth 2. Completes in ~2 seconds. Useful for verifying the build works before committing to a full render.
 
+### Output as PNG or BMP
+
+```
+./gradlew run --args="--headless --format=png"
+./gradlew run --args="--headless --format=bmp"
+```
+
+Writes `raytracing.png` or `raytracing.bmp` instead of the default `raytracing.ppm`. Useful since most modern image viewers display PNG/BMP without extra tooling.
+
 ## All flags
 
 | Flag | Default | Description |
@@ -53,12 +62,13 @@ Renders with a 1x1 sample grid and max depth 2. Completes in ~2 seconds. Useful 
 | `--grid=N` | `8` | Supersample grid side length (NxN rays per pixel) |
 | `--depth=N` | `6` | Maximum ray recursion depth |
 | `--quick` | off | Shorthand for `--grid=1 --depth=2` |
+| `--format=ppm\|png\|bmp` | `ppm` | Output image format |
 
 ## Output
 
-`raytracing.ppm` is written to the repo root in P6 (binary PPM) format. Open it with any image viewer that supports PPM (e.g. GIMP, IrfanView, `ffmpeg`, `convert` from ImageMagick).
+By default, `raytracing.ppm` is written to the repo root in P6 (binary PPM) format. Open it with any image viewer that supports PPM (e.g. GIMP, IrfanView, `ffmpeg`, `convert` from ImageMagick). With `--format=png` or `--format=bmp`, the renderer writes `raytracing.png` or `raytracing.bmp` instead, both viewable in any standard image viewer.
 
-The file is excluded from git by `.gitignore`. The C++ reference render at `legacy/cpp/Distributed Ray Tracer/raytracing.ppm` is preserved for visual comparison.
+Output files are excluded from git by `.gitignore`. The C++ reference render at `legacy/cpp/Distributed Ray Tracer/raytracing.ppm` is preserved for visual comparison.
 
 ## Building without running
 

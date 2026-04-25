@@ -8,6 +8,7 @@ final class Args {
     int gridX = 8;
     int gridY = 8;
     int maxDepth = 6;
+    String format = "ppm"; // ppm | png | bmp
 
     static Args parse(String[] argv) {
         Args a = new Args();
@@ -26,6 +27,12 @@ final class Args {
                         a.gridX = n; a.gridY = n;
                     } else if (s.startsWith("--depth=")) {
                         a.maxDepth = Integer.parseInt(s.substring(8));
+                    } else if (s.startsWith("--format=")) {
+                        a.format = s.substring(9).toLowerCase();
+                        if (!a.format.equals("ppm") && !a.format.equals("png") && !a.format.equals("bmp")) {
+                            System.err.println("Unknown format: " + a.format);
+                            a.printUsage = true;
+                        }
                     } else {
                         System.err.println("Unknown arg: " + s);
                         a.printUsage = true;

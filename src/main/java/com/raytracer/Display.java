@@ -62,8 +62,7 @@ public class Display extends Application {
             int[] pixels = renderer.render();
 
             try {
-                Path out = Path.of("raytracing.ppm");
-                PpmIO.write(out, pixels, renderer.getHeight(), renderer.getWidth());
+                Path out = ImageOut.write(args.format, pixels, renderer.getHeight(), renderer.getWidth());
                 long elapsed = (System.currentTimeMillis() - startMs) / 1000;
                 System.out.println("Wrote " + out.toAbsolutePath());
                 Platform.runLater(() -> stage.setTitle(

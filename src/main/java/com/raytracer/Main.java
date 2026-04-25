@@ -38,17 +38,17 @@ public class Main {
 
         int[] pixels = renderer.render();
 
-        Path out = Path.of("raytracing.ppm");
-        PpmIO.write(out, pixels, renderer.getHeight(), renderer.getWidth());
+        Path out = ImageOut.write(args.format, pixels, renderer.getHeight(), renderer.getWidth());
         System.out.println("Wrote " + out.toAbsolutePath());
     }
 
     private static void printUsage() {
-        System.out.println("Usage: ./gradlew run --args=\"[--headless] [--mode=dof] [--quick] [--grid=N] [--depth=N]\"");
-        System.out.println("  --headless         skip JavaFX, write raytracing.ppm only");
+        System.out.println("Usage: ./gradlew run --args=\"[--headless] [--mode=dof] [--quick] [--grid=N] [--depth=N] [--format=ppm|png|bmp]\"");
+        System.out.println("  --headless         skip JavaFX, write image file only");
         System.out.println("  --mode=supersampled|dof   rendering mode (default supersampled)");
         System.out.println("  --quick            fast smoke test: grid=1, depth=2");
         System.out.println("  --grid=N           supersample grid side (default 8)");
         System.out.println("  --depth=N          max recursion depth (default 6)");
+        System.out.println("  --format=ppm|png|bmp      output format (default ppm)");
     }
 }
