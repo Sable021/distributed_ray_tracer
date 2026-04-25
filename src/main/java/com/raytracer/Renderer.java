@@ -1,5 +1,8 @@
 package com.raytracer;
 
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
+
 import static com.raytracer.SceneObject.ObjectType.*;
 
 /**
@@ -132,7 +135,8 @@ public final class Renderer {
 
         Progress prog = new Progress(height);
 
-        for (int i = 0; i < height; i++) {
+        IntStream.range(0, height).parallel().forEach(i -> {
+            Rng.reseed(rowSeed(i));
             for (int j = 0; j < width; j++) {
                 double scrX = SCR_WXL + j * scrDX;
                 double scrY = SCR_HYB + i * scrDY;
@@ -162,9 +166,9 @@ public final class Renderer {
 
                 pixels[i * width + j] = packArgb(acc);
             }
-            prog.tick(i);
+            prog.tick();
             if (rowListener != null) rowListener.onRowComplete(i, pixels, width);
-        }
+        });
         prog.done();
         return pixels;
     }
@@ -190,7 +194,8 @@ public final class Renderer {
 
         Progress prog = new Progress(height);
 
-        for (int i = 0; i < height; i++) {
+        IntStream.range(0, height).parallel().forEach(i -> {
+            Rng.reseed(rowSeed(i));
             for (int j = 0; j < width; j++) {
                 double scrX = SCR_WXL + j * scrDX;
                 double scrY = SCR_HYB + i * scrDY;
@@ -240,9 +245,9 @@ public final class Renderer {
                 acc[2] /= gridSize;
                 pixels[i * width + j] = packArgb(acc);
             }
-            prog.tick(i);
+            prog.tick();
             if (rowListener != null) rowListener.onRowComplete(i, pixels, width);
-        }
+        });
         prog.done();
         return pixels;
     }
@@ -266,29 +271,43 @@ public final class Renderer {
         return (int)(v * 255.0);
     }
 
-    /** Prints 25/50/75% progress lines matching the C++ indicator logic. */
+    /**
+     * Per-row deterministic RNG seed. Mixed with a large prime so adjacent rows produce
+     * well-separated streams even though seed inputs are sequential.
+     */
+    private static long rowSeed(int row) {
+        return 0x9E3779B97F4A7C15L * (row + 1L);
+    }
+
+    /**
+     * Thread-safe progress reporter. {@link #tick} is invoked once per completed row from
+     * any thread; the 25/50/75% milestones fire exactly once each, on whichever thread
+     * crosses the threshold first.
+     */
     private static final class Progress {
         private final int totalRows;
         private final long startMs = System.currentTimeMillis();
-        private int stage = 0;
+        private final AtomicInteger completed = new AtomicInteger(0);
+        private final AtomicInteger stage = new AtomicInteger(0);
 
         Progress(int totalRows) {
             this.totalRows = totalRows;
             System.out.println("Rendering Scene... Please be Patient");
         }
 
-        void tick(int row) {
-            int threshold = switch (stage) {
+        void tick() {
+            int done = completed.incrementAndGet();
+            int s = stage.get();
+            int threshold = switch (s) {
                 case 0 -> totalRows / 4;
                 case 1 -> totalRows / 2;
                 case 2 -> (3 * totalRows) / 4;
                 default -> Integer.MAX_VALUE;
             };
-            if (row >= threshold) {
+            if (done >= threshold && stage.compareAndSet(s, s + 1)) {
                 long elapsed = (System.currentTimeMillis() - startMs) / 1000;
                 String[] tag = { "25%", "50%", "75%" };
-                System.out.printf("(%s completed) elapsed=%ds%n", tag[stage], elapsed);
-                stage++;
+                System.out.printf("(%s completed) elapsed=%ds%n", tag[s], elapsed);
             }
         }
 

@@ -10,6 +10,7 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * JavaFX entry. Hosts a 1024x768 window backed by a {@link WritableImage}, runs the
@@ -46,6 +47,7 @@ public class Display extends Application {
         stage.show();
 
         final long startMs = System.currentTimeMillis();
+        final AtomicInteger rowsCompleted = new AtomicInteger(0);
 
         Thread render = Thread.ofPlatform().name("renderer").daemon(true).unstarted(() -> {
             Scene scene = Scene.initialise();
@@ -56,7 +58,7 @@ public class Display extends Application {
                 int dstRow = h - 1 - row;
                 int[] rowCopy = new int[width];
                 System.arraycopy(pixels, row * width, rowCopy, 0, width);
-                int rowsDone = row + 1;
+                int rowsDone = rowsCompleted.incrementAndGet();
                 Platform.runLater(() -> {
                     writer.setPixels(0, dstRow, width, 1,
                             PixelFormat.getIntArgbInstance(), rowCopy, 0, width);
