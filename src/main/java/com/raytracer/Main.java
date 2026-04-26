@@ -65,8 +65,8 @@ public class Main {
         System.out.println("  --quick            fast smoke test: grid=1, depth=2");
         System.out.println("  --grid=N           supersample grid side (default 8)");
         System.out.println("  --depth=N          max recursion depth (default 6)");
-        System.out.println("  --width=N          image width in pixels (default 1024)");
-        System.out.println("  --height=N         image height in pixels (default 768)");
+        System.out.println("  --width=N          image width in pixels (default 1440)");
+        System.out.println("  --height=N         image height in pixels (default 1080)");
         System.out.println("  --format=ppm|png|bmp      output format (default ppm)");
     }
 }

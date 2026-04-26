@@ -21,9 +21,9 @@ final class Args {
     int gridY = 8;
     /** Maximum recursion depth for reflected/refracted rays ({@code --depth=N}, default 6). */
     int maxDepth = 6;
-    /** Image width in pixels ({@code --width=N}, default 1024). */
+    /** Image width in pixels ({@code --width=N}, default 1440). */
     int width = Renderer.DEFAULT_WIDTH;
-    /** Image height in pixels ({@code --height=N}, default 768). */
+    /** Image height in pixels ({@code --height=N}, default 1080). */
     int height = Renderer.DEFAULT_HEIGHT;
     /** Output format: {@code ppm} (default), {@code png}, or {@code bmp}. */
     String format = "ppm";

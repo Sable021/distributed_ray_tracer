@@ -1,6 +1,6 @@
 # Distributed Ray Tracer
 
-A Java 21 port of a 2003-era distributed ray tracer. Renders a fixed scene featuring Phong shading, reflection, refraction, soft shadows from area lights, and Perlin-noise textures. Output is a 1024x768 image displayed in a JavaFX window and written to `raytracing.ppm`.
+A Java 21 port of a 2003-era distributed ray tracer. Renders a fixed scene featuring Phong shading, reflection, refraction, soft shadows from area lights, and Perlin-noise textures. Output is a 1440x1080 image displayed in a JavaFX window and written to `raytracing.ppm`.
 
 The original C++ source is preserved in `legacy/cpp/` for reference.
 
@@ -17,7 +17,7 @@ The original C++ source is preserved in `legacy/cpp/` for reference.
 ./gradlew run
 ```
 
-Opens a 1024x768 window that fills in progressively as the scene renders (~5 minutes). When done, writes `raytracing.ppm` to the repo root and updates the window title with the elapsed time.
+Opens a 1440x1080 window that fills in progressively as the scene renders (~10 minutes). When done, writes `raytracing.ppm` to the repo root and updates the window title with the elapsed time.
 
 ### Headless — PPM file only (no window)
 
@@ -59,7 +59,7 @@ Writes `raytracing.png` or `raytracing.bmp` instead of the default `raytracing.p
 ./gradlew run --args="--headless --quick --width=400 --height=300 --format=png"
 ```
 
-Renders at the specified pixel dimensions instead of the default 1024×768. The screen-plane geometry is fixed at a 4:3 aspect ratio, so non-4:3 resolutions will visibly stretch the scene. Render time scales linearly with `width × height`.
+Renders at the specified pixel dimensions instead of the default 1440×1080. The screen-plane geometry is fixed at a 4:3 aspect ratio, so non-4:3 resolutions will visibly stretch the scene. Render time scales linearly with `width × height`.
 
 ## All flags
 
@@ -71,8 +71,8 @@ Renders at the specified pixel dimensions instead of the default 1024×768. The 
 | `--grid=N` | `8` | Supersample grid side length (NxN rays per pixel) |
 | `--depth=N` | `6` | Maximum ray recursion depth |
 | `--quick` | off | Shorthand for `--grid=1 --depth=2` |
-| `--width=N` | `1024` | Image width in pixels |
-| `--height=N` | `768` | Image height in pixels |
+| `--width=N` | `1440` | Image width in pixels |
+| `--height=N` | `1080` | Image height in pixels |
 | `--format=ppm\|png\|bmp` | `ppm` | Output image format |
 
 ## Output

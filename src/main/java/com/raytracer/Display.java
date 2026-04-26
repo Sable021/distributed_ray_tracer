@@ -13,7 +13,7 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * JavaFX entry. Hosts a 1024x768 window backed by a {@link WritableImage}, runs the
+ * JavaFX entry. Hosts a 1440x1080 window backed by a {@link WritableImage}, runs the
  * {@link Renderer} on a background platform thread, and uploads each completed scanline
  * into the image via {@link Platform#runLater(Runnable)} so the picture fills in
  * progressively as it renders.

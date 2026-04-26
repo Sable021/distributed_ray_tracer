@@ -46,9 +46,9 @@ public final class Renderer {
 
     // ---- Image / camera constants (exact C++ values) ----
     /** Default image width in pixels. Used when no {@code --width=N} flag is supplied. */
-    public static final int DEFAULT_WIDTH  = 1024;
+    public static final int DEFAULT_WIDTH  = 1440;
     /** Default image height in pixels. Used when no {@code --height=N} flag is supplied. */
-    public static final int DEFAULT_HEIGHT = 768;
+    public static final int DEFAULT_HEIGHT = 1080;
 
     private static final double[] EYE = { -0.3, 3.0, 11.0 };
 
@@ -101,7 +101,7 @@ public final class Renderer {
         this.rayTracer = new RayTracer(scene, maxDepth, gridX, gridY);
 
         // Initialise light grids for area lights (must happen before any rayTrace call)
-        for (int i = 0; i < scene.numActive; i++) {
+        for (int i = 0; i < this.scene.numActive; i++) {
             SceneObject o = scene.objects[i];
             if (o.isLight && o.type == PLANE) {
                 Sampling.createLightGrid(gridX, gridY, o);
@@ -109,9 +109,9 @@ public final class Renderer {
         }
     }
 
-    /** @return image width in pixels (1024). */
+    /** @return image width in pixels. */
     public int getWidth()  { return width; }
-    /** @return image height in pixels (768). */
+    /** @return image height in pixels. */
     public int getHeight() { return height; }
 
     /**
