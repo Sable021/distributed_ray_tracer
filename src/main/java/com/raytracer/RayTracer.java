@@ -17,14 +17,18 @@ import static com.raytracer.SceneObject.ObjectType.*;
  */
 public final class RayTracer {
 
-    /** Sentinel "no hit yet" distance — larger than any plausible scene t-value. */
-    private static final double LARGE_FLOAT = 99_999_999.0;
-
     /** Global ambient added to every shaded point — matches C++ global_amb. */
     private static final double[] GLOBAL_AMB = { 0.05, 0.05, 0.05 };
 
     /** Area-light shadow sampling: 4 sub-samples per shade call, fixed by C++ behaviour. */
     private static final int AREA_LIGHT_SUB_SAMPLES = 4;
+
+    /** Per-hit attenuation when a refractive object occludes a shadow ray (C++-derived, not physical). */
+    private static final double REFRACTIVE_SHADOW_ATTENUATION = 0.6;
+
+    /** Above this depth, glossy reflection falls back to the perfect mirror direction —
+     *  the variance from jittered sampling at deep recursion is not worth the recursive cost. */
+    private static final int GLOSSY_MAX_DEPTH = 4;
 
     private final Scene scene;
     private final int maxDepth;
@@ -57,7 +61,7 @@ public final class RayTracer {
      */
     public int intersectScene(Ray ray, double[] outIntersect, int depth) {
         int objectIndex = -1;
-        double nearestT = LARGE_FLOAT;
+        double nearestT = Double.POSITIVE_INFINITY;
         double[] cand = new double[3];
 
         for (int i = 0; i < scene.numActive; i++) {
@@ -210,7 +214,7 @@ public final class RayTracer {
             VecMath.normalize(reflDir);
 
             Ray reflectRay;
-            if (obj.glossiness <= 0.0 || depth > 4) {
+            if (obj.glossiness <= 0.0 || depth > GLOSSY_MAX_DEPTH) {
                 reflectRay = Ray.make(intersect, reflDir);
             } else {
                 // Glossy: sample a jittered direction from a grid orthogonal to the perfect reflection
@@ -349,7 +353,7 @@ public final class RayTracer {
             if (blocker.type == PLANE || blocker.isLight) continue;
             if (intersectObject(shadowRay, j) > 0) {
                 if (blocker.refr > 0) {
-                    shadow *= 0.6;
+                    shadow *= REFRACTIVE_SHADOW_ATTENUATION;
                 } else {
                     shadow = 0;
                     break;
