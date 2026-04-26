@@ -174,9 +174,9 @@ public final class RayTracer {
         double[] reflectColour = new double[3];
         double[] refractColour = new double[3];
         double[] N = new double[3];
-        double[] V = { -ray.direct[0], -ray.direct[1], -ray.direct[2] };
+        double[] view = { -ray.direct[0], -ray.direct[1], -ray.direct[2] };
 
-        shadeObject(idx, intersect, V, localColour, rayNum);
+        shadeObject(idx, intersect, view, localColour, rayNum);
 
         // ---- Refraction ----
         if (obj.refr > 0.0 && depth != maxDepth) {
@@ -246,86 +246,37 @@ public final class RayTracer {
      * surface for soft shadows. Both contribute diffuse + specular terms; opaque
      * occluders fully shadow, refractive occluders attenuate by 0.6 per hit. A small
      * {@link #GLOBAL_AMB} ambient term is always added.
-     *
-     * <p>Note the {@code Math.max(0, V·R)} clamp before {@code Math.pow}: Java's
-     * {@code Math.pow} returns {@code NaN} for a negative base with a non-integer
-     * exponent, which would produce black-pixel artifacts under glancing-angle
-     * highlights. The C++ original got away without the clamp because C's {@code pow}
-     * returns 0 instead.
      */
-    private void shadeObject(int index, double[] intersect, double[] V,
+    private void shadeObject(int index, double[] intersect, double[] view,
                              double[] outColour, int rayNum) {
-        double[] N = new double[3];
-        double[] L = new double[3];
-        double[] R = new double[3];
+        double[] L            = new double[3];
         double[] diffColour   = new double[3];
         double[] specColour   = new double[3];
         double[] objectColour = new double[3];
 
         scene.getObjectColour(index, intersect, objectColour);
 
-        SceneObject self = scene.objects[index];
         int gridSize = gridX * gridY;
 
         for (int i = 0; i < scene.numActive; i++) {
             SceneObject light = scene.objects[i];
             if (!light.isLight) continue;
 
-            VecMath.set(diffColour, 0, 0, 0);
-            VecMath.set(specColour, 0, 0, 0);
-
             if (light.type == SPHERE) {
-                // ---- Point light ----
+                // ---- Point light: single shadow ray ----
                 VecMath.direction(L, intersect, light.vectors[0]);
                 VecMath.normalize(L);
-                Ray shadowRay = Ray.make(intersect, L);
 
-                double shadow = 1.0;
-                // C++ hardcodes j<15 — only test non-light, non-plane objects as shadow casters.
-                for (int j = 0; j < 15; j++) {
-                    if (scene.objects[j].type == PLANE) continue;
-                    if (!scene.objects[j].isLight && intersectObject(shadowRay, j) > 0) {
-                        if (scene.objects[j].refr > 0) {
-                            shadow *= 0.6;
-                        } else {
-                            shadow = 0;
-                            break;
-                        }
-                    }
-                }
-
-                if (shadow > 0) {
-                    Intersect.getNormal(self, intersect, N);
-                    double NdotL = VecMath.dot(N, L);
-                    if (NdotL > 0) {
-                        double kd = self.diffuse;
-                        diffColour[0] = shadow * kd * NdotL * objectColour[0] * light.vectors[1][0];
-                        diffColour[1] = shadow * kd * NdotL * objectColour[1] * light.vectors[1][1];
-                        diffColour[2] = shadow * kd * NdotL * objectColour[2] * light.vectors[1][2];
-
-                        if (self.specular_r > 0) {
-                            R[0] = 2 * NdotL * N[0] - L[0];
-                            R[1] = 2 * NdotL * N[1] - L[1];
-                            R[2] = 2 * NdotL * N[2] - L[2];
-                            VecMath.normalize(R);
-
-                            double VdotR = Math.max(0.0, VecMath.dot(V, R));  // clamp (Math.pow NaN fix)
-                            double ks = self.specular_r;
-                            double pow = Math.pow(VdotR, self.n);
-
-                            specColour[0] = shadow * ks * pow * light.vectors[2][0];
-                            specColour[1] = shadow * ks * pow * light.vectors[2][1];
-                            specColour[2] = shadow * ks * pow * light.vectors[2][2];
-                        }
-                    }
-                }
+                // C++ hardcodes the shadow-caster bound to j<15; preserved for parity.
+                accumulateLightContribution(index, i, intersect, view, L, objectColour,
+                                            15, diffColour, specColour);
 
                 outColour[0] += diffColour[0] + specColour[0];
                 outColour[1] += diffColour[1] + specColour[1];
                 outColour[2] += diffColour[2] + specColour[2];
 
             } else if (light.type == PLANE) {
-                // ---- Area light (4 stratified sub-samples) ----
+                // ---- Area light: average AREA_LIGHT_SUB_SAMPLES jittered shadow rays ----
                 double[] sampleVertex = new double[3];
                 double[] sampleColour = new double[3];
 
@@ -334,9 +285,6 @@ public final class RayTracer {
                 double[] lgdY = lgd.lightGridDY();
 
                 for (int k = 0; k < AREA_LIGHT_SUB_SAMPLES; k++) {
-                    VecMath.set(diffColour, 0, 0, 0);
-                    VecMath.set(specColour, 0, 0, 0);
-
                     int[] xy = Sampling.getGridNumber((rayNum + k) % gridSize, gridX, gridY);
                     int gx = xy[0], gy = xy[1];
 
@@ -349,46 +297,9 @@ public final class RayTracer {
 
                     VecMath.direction(L, intersect, sampleVertex);
                     VecMath.normalize(L);
-                    Ray shadowRay = Ray.make(intersect, L);
 
-                    double shadow = 1.0;
-                    for (int j = 0; j < scene.numActive; j++) {
-                        if (scene.objects[j].type == PLANE || scene.objects[j].isLight) continue;
-                        if (!scene.objects[j].isLight && intersectObject(shadowRay, j) > 0) {
-                            if (scene.objects[j].refr > 0) {
-                                shadow *= 0.6;
-                            } else {
-                                shadow = 0;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (shadow > 0) {
-                        Intersect.getNormal(self, intersect, N);
-                        double NdotL = VecMath.dot(N, L);
-                        if (NdotL > 0) {
-                            double kd = self.diffuse;
-                            diffColour[0] = shadow * kd * NdotL * objectColour[0] * light.vectors[1][0];
-                            diffColour[1] = shadow * kd * NdotL * objectColour[1] * light.vectors[1][1];
-                            diffColour[2] = shadow * kd * NdotL * objectColour[2] * light.vectors[1][2];
-
-                            if (self.specular_r > 0) {
-                                R[0] = 2 * NdotL * N[0] - L[0];
-                                R[1] = 2 * NdotL * N[1] - L[1];
-                                R[2] = 2 * NdotL * N[2] - L[2];
-                                VecMath.normalize(R);
-
-                                double VdotR = Math.max(0.0, VecMath.dot(V, R));
-                                double ks = self.specular_r;
-                                double pow = Math.pow(VdotR, self.n);
-
-                                specColour[0] = shadow * ks * pow * light.vectors[2][0];
-                                specColour[1] = shadow * ks * pow * light.vectors[2][1];
-                                specColour[2] = shadow * ks * pow * light.vectors[2][2];
-                            }
-                        }
-                    }
+                    accumulateLightContribution(index, i, intersect, view, L, objectColour,
+                                                scene.numActive, diffColour, specColour);
 
                     sampleColour[0] += diffColour[0] + specColour[0];
                     sampleColour[1] += diffColour[1] + specColour[1];
@@ -404,5 +315,78 @@ public final class RayTracer {
         outColour[0] += GLOBAL_AMB[0];
         outColour[1] += GLOBAL_AMB[1];
         outColour[2] += GLOBAL_AMB[2];
+    }
+
+    /**
+     * Cast one shadow ray from {@code intersect} along {@code L} toward a (point or
+     * area-light sub-sample) light, then write the resulting Phong diffuse and specular
+     * contributions into {@code outDiff} / {@code outSpec}. Both outputs are zeroed at
+     * entry, so callers can sum them directly without pre-clearing.
+     *
+     * <p>Opaque occluders zero the contribution; refractive occluders attenuate by
+     * {@code 0.6} per hit. Planes and lights are never treated as shadow casters.
+     *
+     * <p>Note the {@code Math.max(0, view·R)} clamp before {@code Math.pow}: Java's
+     * {@code Math.pow} returns {@code NaN} for a negative base with a non-integer
+     * exponent, which would produce black-pixel artifacts at glancing-angle highlights.
+     * The C++ original got away without the clamp because C's {@code pow} returns 0.
+     *
+     * @param shadowCasterEnd exclusive upper bound for the shadow-caster scan; point
+     *                        lights pass 15 (C++ quirk), area lights pass numActive
+     */
+    private void accumulateLightContribution(int selfIdx, int lightIdx,
+                                             double[] intersect, double[] view, double[] L,
+                                             double[] objectColour, int shadowCasterEnd,
+                                             double[] outDiff, double[] outSpec) {
+        VecMath.set(outDiff, 0, 0, 0);
+        VecMath.set(outSpec, 0, 0, 0);
+
+        Ray shadowRay = Ray.make(intersect, L);
+
+        double shadow = 1.0;
+        for (int j = 0; j < shadowCasterEnd; j++) {
+            SceneObject blocker = scene.objects[j];
+            if (blocker.type == PLANE || blocker.isLight) continue;
+            if (intersectObject(shadowRay, j) > 0) {
+                if (blocker.refr > 0) {
+                    shadow *= 0.6;
+                } else {
+                    shadow = 0;
+                    break;
+                }
+            }
+        }
+
+        if (shadow <= 0) return;
+
+        SceneObject self  = scene.objects[selfIdx];
+        SceneObject light = scene.objects[lightIdx];
+
+        double[] N = new double[3];
+        Intersect.getNormal(self, intersect, N);
+        double NdotL = VecMath.dot(N, L);
+        if (NdotL <= 0) return;
+
+        double kd = self.diffuse;
+        outDiff[0] = shadow * kd * NdotL * objectColour[0] * light.vectors[1][0];
+        outDiff[1] = shadow * kd * NdotL * objectColour[1] * light.vectors[1][1];
+        outDiff[2] = shadow * kd * NdotL * objectColour[2] * light.vectors[1][2];
+
+        if (self.specular_r > 0) {
+            double[] R = {
+                2 * NdotL * N[0] - L[0],
+                2 * NdotL * N[1] - L[1],
+                2 * NdotL * N[2] - L[2]
+            };
+            VecMath.normalize(R);
+
+            double VdotR = Math.max(0.0, VecMath.dot(view, R));  // clamp (Math.pow NaN fix)
+            double ks = self.specular_r;
+            double pow = Math.pow(VdotR, self.n);
+
+            outSpec[0] = shadow * ks * pow * light.vectors[2][0];
+            outSpec[1] = shadow * ks * pow * light.vectors[2][1];
+            outSpec[2] = shadow * ks * pow * light.vectors[2][2];
+        }
     }
 }

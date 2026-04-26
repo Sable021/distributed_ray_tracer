@@ -180,6 +180,8 @@ public final class Sampling {
     public static int[] getGridNumber(int traceNum, int gsizeX, int gsizeY) {
         int gridSize = gsizeX * gsizeY;
         int gridNum  = (traceNum * 7) % gridSize;   // preserve the magic 7 multiplier
-        return new int[]{ gridNum % gsizeX, gridNum / gsizeY };
+        // Row-major decomposition: x = idx % cols, y = idx / cols (cols = gsizeX).
+        // The C++ original used /gsizeY here; harmless for square grids but wrong otherwise.
+        return new int[]{ gridNum % gsizeX, gridNum / gsizeX };
     }
 }
