@@ -32,8 +32,8 @@ public class Display extends Application {
     public void start(Stage stage) {
         Args args = Args.parse(getParameters().getRaw().toArray(new String[0]));
 
-        final int w = Renderer.SCR_WIDTH;
-        final int h = Renderer.SCR_HEIGHT;
+        final int w = args.width;
+        final int h = args.height;
 
         WritableImage image = new WritableImage(w, h);
         PixelWriter writer = image.getPixelWriter();
@@ -51,7 +51,8 @@ public class Display extends Application {
 
         Thread render = Thread.ofPlatform().name("renderer").daemon(true).unstarted(() -> {
             Scene scene = Scene.initialise();
-            Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY, args.maxDepth);
+            Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY,
+                                             args.maxDepth, w, h);
 
             renderer.setRowListener((row, pixels, width) -> {
                 // Renderer is bottom-up (row 0 = bottom of image); FX image is top-down.

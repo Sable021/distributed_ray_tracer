@@ -21,6 +21,10 @@ final class Args {
     int gridY = 8;
     /** Maximum recursion depth for reflected/refracted rays ({@code --depth=N}, default 6). */
     int maxDepth = 6;
+    /** Image width in pixels ({@code --width=N}, default 1024). */
+    int width = Renderer.DEFAULT_WIDTH;
+    /** Image height in pixels ({@code --height=N}, default 768). */
+    int height = Renderer.DEFAULT_HEIGHT;
     /** Output format: {@code ppm} (default), {@code png}, or {@code bmp}. */
     String format = "ppm";
 
@@ -50,6 +54,22 @@ final class Args {
                         a.gridX = n; a.gridY = n;
                     } else if (s.startsWith("--depth=")) {
                         a.maxDepth = Integer.parseInt(s.substring(8));
+                    } else if (s.startsWith("--width=")) {
+                        int n = Integer.parseInt(s.substring(8));
+                        if (n <= 0) {
+                            System.err.println("--width must be positive: " + n);
+                            a.printUsage = true;
+                        } else {
+                            a.width = n;
+                        }
+                    } else if (s.startsWith("--height=")) {
+                        int n = Integer.parseInt(s.substring(9));
+                        if (n <= 0) {
+                            System.err.println("--height must be positive: " + n);
+                            a.printUsage = true;
+                        } else {
+                            a.height = n;
+                        }
                     } else if (s.startsWith("--format=")) {
                         a.format = s.substring(9).toLowerCase();
                         if (!a.format.equals("ppm") && !a.format.equals("png") && !a.format.equals("bmp")) {

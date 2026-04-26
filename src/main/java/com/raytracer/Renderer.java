@@ -45,8 +45,10 @@ public final class Renderer {
     }
 
     // ---- Image / camera constants (exact C++ values) ----
-    public static final int SCR_WIDTH  = 1024;
-    public static final int SCR_HEIGHT = 768;
+    /** Default image width in pixels. Used when no {@code --width=N} flag is supplied. */
+    public static final int DEFAULT_WIDTH  = 1024;
+    /** Default image height in pixels. Used when no {@code --height=N} flag is supplied. */
+    public static final int DEFAULT_HEIGHT = 768;
 
     private static final double[] EYE = { -0.3, 3.0, 11.0 };
 
@@ -85,15 +87,17 @@ public final class Renderer {
      * @param gridX    supersample (and DoF lens) grid width — total rays per pixel = gridX*gridY
      * @param gridY    supersample (and DoF lens) grid height
      * @param maxDepth maximum recursion depth for reflected/refracted rays
+     * @param width    image width in pixels
+     * @param height   image height in pixels
      */
-    public Renderer(Scene scene, Mode mode, int gridX, int gridY, int maxDepth) {
+    public Renderer(Scene scene, Mode mode, int gridX, int gridY, int maxDepth, int width, int height) {
         this.scene = scene;
         this.mode = mode;
         this.gridX = gridX;
         this.gridY = gridY;
         this.maxDepth = maxDepth;
-        this.width = SCR_WIDTH;
-        this.height = SCR_HEIGHT;
+        this.width = width;
+        this.height = height;
         this.rayTracer = new RayTracer(scene, maxDepth, gridX, gridY);
 
         // Initialise light grids for area lights (must happen before any rayTrace call)

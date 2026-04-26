@@ -44,11 +44,12 @@ public class Main {
      * use where no display is available.
      */
     private static void runHeadless(Args args) throws Exception {
-        System.out.printf("Config: mode=%s grid=%dx%d maxDepth=%d%n",
-                args.mode, args.gridX, args.gridY, args.maxDepth);
+        System.out.printf("Config: %dx%d mode=%s grid=%dx%d maxDepth=%d%n",
+                args.width, args.height, args.mode, args.gridX, args.gridY, args.maxDepth);
 
         Scene scene = Scene.initialise();
-        Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY, args.maxDepth);
+        Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY,
+                                         args.maxDepth, args.width, args.height);
 
         int[] pixels = renderer.render();
 
@@ -58,12 +59,14 @@ public class Main {
 
     /** Print the supported CLI flags and a one-line description of each to stdout. */
     private static void printUsage() {
-        System.out.println("Usage: ./gradlew run --args=\"[--headless] [--mode=dof] [--quick] [--grid=N] [--depth=N] [--format=ppm|png|bmp]\"");
+        System.out.println("Usage: ./gradlew run --args=\"[--headless] [--mode=dof] [--quick] [--grid=N] [--depth=N] [--width=N] [--height=N] [--format=ppm|png|bmp]\"");
         System.out.println("  --headless         skip JavaFX, write image file only");
         System.out.println("  --mode=supersampled|dof   rendering mode (default supersampled)");
         System.out.println("  --quick            fast smoke test: grid=1, depth=2");
         System.out.println("  --grid=N           supersample grid side (default 8)");
         System.out.println("  --depth=N          max recursion depth (default 6)");
+        System.out.println("  --width=N          image width in pixels (default 1024)");
+        System.out.println("  --height=N         image height in pixels (default 768)");
         System.out.println("  --format=ppm|png|bmp      output format (default ppm)");
     }
 }

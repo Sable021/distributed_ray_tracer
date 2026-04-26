@@ -52,6 +52,15 @@ Renders with a 1x1 sample grid and max depth 2. Completes in ~2 seconds. Useful 
 
 Writes `raytracing.png` or `raytracing.bmp` instead of the default `raytracing.ppm`. Useful since most modern image viewers display PNG/BMP without extra tooling.
 
+### Custom resolution
+
+```
+./gradlew run --args="--width=1920 --height=1080"
+./gradlew run --args="--headless --quick --width=400 --height=300 --format=png"
+```
+
+Renders at the specified pixel dimensions instead of the default 1024×768. The screen-plane geometry is fixed at a 4:3 aspect ratio, so non-4:3 resolutions will visibly stretch the scene. Render time scales linearly with `width × height`.
+
 ## All flags
 
 | Flag | Default | Description |
@@ -62,6 +71,8 @@ Writes `raytracing.png` or `raytracing.bmp` instead of the default `raytracing.p
 | `--grid=N` | `8` | Supersample grid side length (NxN rays per pixel) |
 | `--depth=N` | `6` | Maximum ray recursion depth |
 | `--quick` | off | Shorthand for `--grid=1 --depth=2` |
+| `--width=N` | `1024` | Image width in pixels |
+| `--height=N` | `768` | Image height in pixels |
 | `--format=ppm\|png\|bmp` | `ppm` | Output image format |
 
 ## Output
