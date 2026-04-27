@@ -17,9 +17,6 @@ public final class Sampling {
 
     private Sampling() {}
 
-    static final int MAX_GRID_X = 8;
-    static final int MAX_GRID_Y = 8;
-
     /** sqrt(0.125) — diagonal offset for the glossy reflection sample grid */
     static final double DIAG_HALF = Math.sqrt(0.125);
 
@@ -36,6 +33,10 @@ public final class Sampling {
             System.err.println("createLightGrid: object is not a light");
             return;
         }
+
+        // Allocate the sample buffer to match the requested grid size — the grid is
+        // configurable at runtime via --grid=N, so we cannot pre-size this field.
+        obj.lightGridSample = new double[gsizeY][gsizeX][3];
 
         double[] directX = new double[3];
         double[] directY = new double[3];

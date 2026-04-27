@@ -1,5 +1,7 @@
 package com.raytracer;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import static com.raytracer.SceneObject.ObjectType.*;
 
 /**
@@ -33,6 +35,26 @@ public final class RayTracer {
     private final Scene scene;
     private final int maxDepth;
     private final int gridX, gridY;   // area-light stratification grid (matches supersample grid)
+
+    // Ray counters — incremented from every render thread, snapshot via getRayCounts()
+    private final AtomicLong primaryRays  = new AtomicLong();
+    private final AtomicLong shadowRays   = new AtomicLong();
+    private final AtomicLong reflectRays  = new AtomicLong();
+    private final AtomicLong refractRays  = new AtomicLong();
+
+    /**
+     * Snapshot of rays cast so far, broken down by type. Counts are monotonic — they only
+     * grow during a render and are not reset between renders on the same {@link RayTracer}.
+     */
+    public record RayCounts(long primary, long shadow, long reflect, long refract) {
+        public long total() { return primary + shadow + reflect + refract; }
+    }
+
+    /** Thread-safe snapshot of the current ray counts. */
+    public RayCounts getRayCounts() {
+        return new RayCounts(primaryRays.get(), shadowRays.get(),
+                             reflectRays.get(), refractRays.get());
+    }
 
     /**
      * @param scene    pre-initialised scene to render
@@ -68,8 +90,8 @@ public final class RayTracer {
             SceneObject obj = scene.objects[i];
             if (obj.type == UNASSIGNED) continue;
 
-            // Primary rays: skip the front area light so it doesn't eclipse the scene
-            if (depth == 1 && i == Scene.SKIP_AT_DEPTH_1) continue;
+            // Primary rays: skip objects flagged to avoid eclipsing the scene
+            if (depth == 1 && scene.objects[i].skipPrimaryRays) continue;
 
             double t = intersectObject(ray, i);
             if (t > 0.0 && t < nearestT) {
@@ -99,7 +121,7 @@ public final class RayTracer {
             case TRIANGLE -> Intersect.rayTriIntersect(ray, obj);
             case PLANE    -> {
                 double tp = Intersect.rayPlaneIntersect(ray, obj);
-                if (tp > 0.0 && Scene.isBoundedQuad(index)) {
+                if (tp > 0.0 && scene.isBoundedQuad(index)) {
                     double[] pt = new double[3];
                     VecMath.pointOnLine(pt, ray.point, ray.direct, tp);
 
@@ -155,6 +177,8 @@ public final class RayTracer {
      */
     public void rayTrace(Ray ray, int depth, double rindex,
                          double[] outColour, boolean inside, int rayNum) {
+        if (depth == 1) primaryRays.incrementAndGet();
+
         if (depth > maxDepth) {
             VecMath.set(outColour, 0, 0, 0);
             return;
@@ -197,11 +221,13 @@ public final class RayTracer {
 
             if (refracted) {
                 Ray refractRay = Ray.make(intersect, refrDir);
+                refractRays.incrementAndGet();
                 rayTrace(refractRay, depth + 1, objRIndex, refractColour, !inside, rayNum);
             } else {
                 // Total internal reflection — bounce back inside the object
                 Intersect.reflection(ray.direct, N, refrDir);
                 Ray refractRay = Ray.make(intersect, refrDir);
+                refractRays.incrementAndGet();
                 rayTrace(refractRay, depth + 1, rindex, refractColour, !inside, rayNum);
             }
         }
@@ -229,6 +255,7 @@ public final class RayTracer {
 
                 reflectRay = Ray.make(intersect, sampleRefl);
             }
+            reflectRays.incrementAndGet();
             rayTrace(reflectRay, depth + 1, rindex, reflectColour, inside, rayNum);
         }
 
@@ -346,6 +373,7 @@ public final class RayTracer {
         VecMath.set(outSpec, 0, 0, 0);
 
         Ray shadowRay = Ray.make(intersect, L);
+        shadowRays.incrementAndGet();
 
         double shadow = 1.0;
         for (int j = 0; j < shadowCasterEnd; j++) {

@@ -55,8 +55,12 @@ public class SceneObject {
     // ---- Light source attributes (used only when isLight = true) ----
     /** True if this object emits light. Lights are skipped as shaded surfaces. */
     public boolean isLight;
-    /** Pre-computed grid of sample points across an area light's surface. Filled by {@link Sampling#createLightGrid}. */
-    public double[][][] lightGridSample = new double[Sampling.MAX_GRID_Y][Sampling.MAX_GRID_X][3];
+    /**
+     * Pre-computed grid of sample points across an area light's surface, indexed
+     * {@code [y][x][component]}. Allocated and filled by {@link Sampling#createLightGrid}
+     * to match the configured grid size; remains {@code null} for non-light objects.
+     */
+    public double[][][] lightGridSample;
     /** Step vector along the light's local X axis between adjacent grid samples. */
     public double[]     lightGridDX     = new double[3];
     /** Step vector along the light's local Y axis between adjacent grid samples. */
@@ -65,4 +69,9 @@ public class SceneObject {
     public double       lightDX;
     /** Step magnitude along the light's local Y axis (jitter range). */
     public double       lightDY;
+
+    /** Procedural texture name: {@code "checkerboard"}, {@code "stripes"}, or {@code null} (use base colour). */
+    public String  texture;
+    /** If true, this object is skipped when tracing primary (depth=1) rays. */
+    public boolean skipPrimaryRays;
 }

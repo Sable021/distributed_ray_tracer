@@ -113,6 +113,8 @@ public final class Renderer {
     public int getWidth()  { return width; }
     /** @return image height in pixels. */
     public int getHeight() { return height; }
+    /** @return live snapshot of rays cast so far, broken down by type. */
+    public RayTracer.RayCounts getRayCounts() { return rayTracer.getRayCounts(); }
 
     /**
      * Run the render. Synchronous: returns only after every pixel has been shaded.

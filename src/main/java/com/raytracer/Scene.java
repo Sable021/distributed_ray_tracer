@@ -29,14 +29,14 @@ public final class Scene {
     /** Number of valid entries in {@link #objects}; equals {@link #NUM_ACTIVE}. */
     public final int numActive;
 
-    private Scene(SceneObject[] objects, int numActive) {
+    Scene(SceneObject[] objects, int numActive) {
         this.objects = objects;
         this.numActive = numActive;
     }
 
-    /** Object indices 15 and 16 are axis-aligned bounded quads (area light planes). */
-    public static boolean isBoundedQuad(int idx) {
-        return idx == 15 || idx == 16;
+    /** Returns true if the object at {@code idx} is an area-light bounded quad. */
+    public boolean isBoundedQuad(int idx) {
+        return objects[idx].isLight && objects[idx].type == SceneObject.ObjectType.PLANE;
     }
 
     /**
@@ -202,20 +202,29 @@ public final class Scene {
         VecMath.set(o[16].colour, 1.0, 1.0, 1.0);
         o[16].isLight = true;
 
+        // Procedural textures
+        o[0].texture = "checkerboard";
+        for (int i = 9; i <= 12; i++) o[i].texture = "stripes";
+
+        // Back-wall area light is skipped by primary rays (would eclipse the scene)
+        o[16].skipPrimaryRays = true;
+
         return new Scene(o, NUM_ACTIVE);
     }
 
     /**
      * Compute the surface colour at the intersection point, dispatching to texture functions
-     * for the floor and tetrahedron; otherwise uses the object's base colour.
+     * based on the object's {@link SceneObject#texture} field; falls back to the base colour.
      */
     public void getObjectColour(int idx, double[] intersect, double[] outColour) {
-        if (idx == 0) {
+        String tex = objects[idx].texture;
+        if ("checkerboard".equals(tex)) {
             Textures.mixChecks(intersect, outColour);
-        } else if (idx >= 9 && idx <= 12) {
+        } else if ("stripes".equals(tex)) {
             Textures.strips(intersect, outColour);
         } else {
             VecMath.copy(objects[idx].colour, outColour);
         }
     }
+
 }

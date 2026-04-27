@@ -2,6 +2,9 @@ package com.raytracer;
 
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.PixelWriter;
@@ -38,7 +41,18 @@ public class Display extends Application {
         WritableImage image = new WritableImage(w, h);
         PixelWriter writer = image.getPixelWriter();
         ImageView view = new ImageView(image);
-        StackPane root = new StackPane(view);
+
+        Label rayStats = new Label("primary 0 | shadow 0 | reflect 0 | refract 0");
+        rayStats.setStyle(
+                "-fx-background-color: rgba(0, 0, 0, 0.55);" +
+                "-fx-text-fill: white;" +
+                "-fx-font-family: 'Consolas', 'Monaco', monospace;" +
+                "-fx-font-size: 12px;" +
+                "-fx-padding: 6 10 6 10;");
+        StackPane.setAlignment(rayStats, Pos.TOP_LEFT);
+        StackPane.setMargin(rayStats, new Insets(8));
+
+        StackPane root = new StackPane(view, rayStats);
         javafx.scene.Scene fxScene = new javafx.scene.Scene(root, w, h);
 
         stage.setTitle("Ray Tracer — rendering...");
@@ -60,9 +74,11 @@ public class Display extends Application {
                 int[] rowCopy = new int[width];
                 System.arraycopy(pixels, row * width, rowCopy, 0, width);
                 int rowsDone = rowsCompleted.incrementAndGet();
+                RayTracer.RayCounts counts = renderer.getRayCounts();
                 Platform.runLater(() -> {
                     writer.setPixels(0, dstRow, width, 1,
                             PixelFormat.getIntArgbInstance(), rowCopy, 0, width);
+                    rayStats.setText(formatRayCounts(counts));
                     if (rowsDone % 32 == 0 || rowsDone == h) {
                         long elapsed = (System.currentTimeMillis() - startMs) / 1000;
                         int pct = (rowsDone * 100) / h;
@@ -85,5 +101,22 @@ public class Display extends Application {
             }
         });
         render.start();
+    }
+
+    /** Format ray counts as a single-line label, abbreviating large numbers (e.g. 1.2M, 3.4K). */
+    private static String formatRayCounts(RayTracer.RayCounts c) {
+        return String.format("primary %s | shadow %s | reflect %s | refract %s | total %s",
+                abbreviate(c.primary()),
+                abbreviate(c.shadow()),
+                abbreviate(c.reflect()),
+                abbreviate(c.refract()),
+                abbreviate(c.total()));
+    }
+
+    private static String abbreviate(long n) {
+        if (n < 1_000)         return Long.toString(n);
+        if (n < 1_000_000)     return String.format("%.1fK", n / 1_000.0);
+        if (n < 1_000_000_000) return String.format("%.1fM", n / 1_000_000.0);
+        return String.format("%.2fB", n / 1_000_000_000.0);
     }
 }
