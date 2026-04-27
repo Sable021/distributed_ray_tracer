@@ -47,9 +47,18 @@ public class Main {
         System.out.printf("Config: %dx%d mode=%s grid=%dx%d maxDepth=%d%n",
                 args.width, args.height, args.mode, args.gridX, args.gridY, args.maxDepth);
 
-        Scene scene = Scene.initialise();
+        Scene scene;
+        CameraConfig camera;
+        if (args.scenePath != null) {
+            SceneLoader.Loaded loaded = SceneLoader.load(args.scenePath);
+            scene  = loaded.scene();
+            camera = loaded.camera();
+        } else {
+            scene  = Scene.initialise();
+            camera = CameraConfig.defaults();
+        }
         Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY,
-                                         args.maxDepth, args.width, args.height);
+                                         args.maxDepth, args.width, args.height, camera);
 
         int[] pixels = renderer.render();
 
@@ -68,5 +77,6 @@ public class Main {
         System.out.println("  --width=N          image width in pixels (default 1440)");
         System.out.println("  --height=N         image height in pixels (default 1080)");
         System.out.println("  --format=ppm|png|bmp      output format (default ppm)");
+        System.out.println("  --scene=PATH              load scene + camera from a JSON file");
     }
 }

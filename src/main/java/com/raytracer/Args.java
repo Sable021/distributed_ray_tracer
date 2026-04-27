@@ -27,6 +27,8 @@ final class Args {
     int height = Renderer.DEFAULT_HEIGHT;
     /** Output format: {@code ppm} (default), {@code png}, or {@code bmp}. */
     String format = "ppm";
+    /** Path to a JSON scene file, or {@code null} to use the built-in hardcoded scene. */
+    java.nio.file.Path scenePath = null;
 
     /**
      * Parse a raw {@code argv}-style array into an {@code Args}.
@@ -76,6 +78,8 @@ final class Args {
                             System.err.println("Unknown format: " + a.format);
                             a.printUsage = true;
                         }
+                    } else if (s.startsWith("--scene=")) {
+                        a.scenePath = java.nio.file.Path.of(s.substring("--scene=".length()));
                     } else {
                         System.err.println("Unknown arg: " + s);
                         a.printUsage = true;

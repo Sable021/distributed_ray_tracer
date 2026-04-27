@@ -227,4 +227,13 @@ public final class Scene {
         }
     }
 
+    /**
+     * Load a scene from a JSON file. The camera configuration is returned via
+     * {@link SceneLoader.Loaded#camera()}; use {@link CameraConfig#defaults()} if absent.
+     *
+     * @throws java.io.IOException if the file cannot be read or parsed
+     */
+    public static SceneLoader.Loaded load(java.nio.file.Path file) throws java.io.IOException {
+        return SceneLoader.load(file);
+    }
 }

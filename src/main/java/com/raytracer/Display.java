@@ -64,9 +64,24 @@ public class Display extends Application {
         final AtomicInteger rowsCompleted = new AtomicInteger(0);
 
         Thread render = Thread.ofPlatform().name("renderer").daemon(true).unstarted(() -> {
-            Scene scene = Scene.initialise();
+            Scene scene;
+            CameraConfig camera;
+            try {
+                if (args.scenePath != null) {
+                    SceneLoader.Loaded loaded = SceneLoader.load(args.scenePath);
+                    scene  = loaded.scene();
+                    camera = loaded.camera();
+                } else {
+                    scene  = Scene.initialise();
+                    camera = CameraConfig.defaults();
+                }
+            } catch (java.io.IOException e) {
+                e.printStackTrace();
+                Platform.runLater(() -> stage.setTitle("Ray Tracer — failed to load scene: " + e.getMessage()));
+                return;
+            }
             Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY,
-                                             args.maxDepth, w, h);
+                                             args.maxDepth, w, h, camera);
 
             renderer.setRowListener((row, pixels, width) -> {
                 // Renderer is bottom-up (row 0 = bottom of image); FX image is top-down.

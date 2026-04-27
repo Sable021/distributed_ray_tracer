@@ -44,25 +44,16 @@ public final class Renderer {
         void onRowComplete(int row, int[] pixels, int width);
     }
 
-    // ---- Image / camera constants (exact C++ values) ----
+    // ---- Image size defaults ----
     /** Default image width in pixels. Used when no {@code --width=N} flag is supplied. */
     public static final int DEFAULT_WIDTH  = 1440;
     /** Default image height in pixels. Used when no {@code --height=N} flag is supplied. */
     public static final int DEFAULT_HEIGHT = 1080;
 
-    private static final double[] EYE = { -0.3, 3.0, 11.0 };
-
-    /** Screen plane in world-space: left/right x, bottom/top y, at z = SCR_Z. */
-    private static final double SCR_WXL = -3.0;
-    private static final double SCR_WXR =  3.0;
-    private static final double SCR_HYB =  1.25;
-    private static final double SCR_HYT =  5.75;
-    private static final double SCR_Z   =  8.2;
-
-    // ---- Depth of field (lens size + focal plane) ----
-    private static final double DOF_LENS_WIDTH  = 0.4;
-    private static final double DOF_LENS_HEIGHT = 0.4;
-    private static final double DOF_FOCAL_DIST  = 3.6;
+    // ---- Camera / screen-plane / DoF (injected via CameraConfig) ----
+    private final double[] eye;
+    private final double scrWxl, scrWxr, scrHyb, scrHyt, scrZ;
+    private final double dofLensWidth, dofLensHeight, dofFocalDist;
 
     private final Scene scene;
     private final RayTracer rayTracer;
@@ -89,15 +80,26 @@ public final class Renderer {
      * @param maxDepth maximum recursion depth for reflected/refracted rays
      * @param width    image width in pixels
      * @param height   image height in pixels
+     * @param camera   camera and screen-plane configuration
      */
-    public Renderer(Scene scene, Mode mode, int gridX, int gridY, int maxDepth, int width, int height) {
-        this.scene = scene;
-        this.mode = mode;
-        this.gridX = gridX;
-        this.gridY = gridY;
+    public Renderer(Scene scene, Mode mode, int gridX, int gridY, int maxDepth,
+                    int width, int height, CameraConfig camera) {
+        this.scene  = scene;
+        this.mode   = mode;
+        this.gridX  = gridX;
+        this.gridY  = gridY;
         this.maxDepth = maxDepth;
-        this.width = width;
+        this.width  = width;
         this.height = height;
+        this.eye          = camera.eye().clone();
+        this.scrWxl       = camera.scrWxl();
+        this.scrWxr       = camera.scrWxr();
+        this.scrHyb       = camera.scrHyb();
+        this.scrHyt       = camera.scrHyt();
+        this.scrZ         = camera.scrZ();
+        this.dofLensWidth = camera.dofLensWidth();
+        this.dofLensHeight= camera.dofLensHeight();
+        this.dofFocalDist = camera.dofFocalDist();
         this.rayTracer = new RayTracer(scene, maxDepth, gridX, gridY);
 
         // Initialise light grids for area lights (must happen before any rayTrace call)
@@ -107,6 +109,11 @@ public final class Renderer {
                 Sampling.createLightGrid(gridX, gridY, o);
             }
         }
+    }
+
+    /** Convenience overload using the default hardcoded camera (C++ scene parity). */
+    public Renderer(Scene scene, Mode mode, int gridX, int gridY, int maxDepth, int width, int height) {
+        this(scene, mode, gridX, gridY, maxDepth, width, height, CameraConfig.defaults());
     }
 
     /** @return image width in pixels. */
@@ -135,8 +142,8 @@ public final class Renderer {
 
     private int[] renderSupersampled() {
         int[] pixels = new int[width * height];
-        double scrDX = (SCR_WXR - SCR_WXL) / width;
-        double scrDY = (SCR_HYT - SCR_HYB) / height;
+        double scrDX = (scrWxr - scrWxl) / width;
+        double scrDY = (scrHyt - scrHyb) / height;
         int gridSize = gridX * gridY;
 
         Progress prog = new Progress(height);
@@ -144,8 +151,8 @@ public final class Renderer {
         IntStream.range(0, height).parallel().forEach(i -> {
             Rng.reseed(rowSeed(i));
             for (int j = 0; j < width; j++) {
-                double scrX = SCR_WXL + j * scrDX;
-                double scrY = SCR_HYB + i * scrDY;
+                double scrX = scrWxl + j * scrDX;
+                double scrY = scrHyb + i * scrDY;
 
                 double[] acc = new double[3];
 
@@ -154,11 +161,11 @@ public final class Renderer {
                         double[] sub = {
                             scrX + (scrDX / gridX) * l + Rng.uniform(0.0, scrDX / gridX),
                             scrY + (scrDY / gridY) * k + Rng.uniform(0.0, scrDY / gridY),
-                            SCR_Z
+                            scrZ
                         };
-                        double[] dir = VecMath.direction(EYE, sub);
+                        double[] dir = VecMath.direction(eye, sub);
                         VecMath.normalize(dir);
-                        Ray ray = Ray.make(EYE, dir);
+                        Ray ray = Ray.make(eye, dir);
 
                         double[] c = new double[3];
                         rayTracer.rayTrace(ray, 1, 1.0, c, false, k * gridX + l);
@@ -185,31 +192,31 @@ public final class Renderer {
 
     private int[] renderDepthOfField() {
         int[] pixels = new int[width * height];
-        double scrDX = (SCR_WXR - SCR_WXL) / width;
-        double scrDY = (SCR_HYT - SCR_HYB) / height;
+        double scrDX = (scrWxr - scrWxl) / width;
+        double scrDY = (scrHyt - scrHyb) / height;
         int gridSize = gridX * gridY;
 
-        double dofDX = DOF_LENS_WIDTH / gridX;
-        double dofDY = DOF_LENS_HEIGHT / gridY;
+        double dofDX = dofLensWidth  / gridX;
+        double dofDY = dofLensHeight / gridY;
 
-        // Build a synthetic focal plane at z = SCR_Z - DOF_FOCAL_DIST (normal (0,0,-1))
+        // Build a synthetic focal plane at z = scrZ - dofFocalDist (normal (0,0,-1))
         SceneObject focalPlane = new SceneObject();
         focalPlane.type = PLANE;
         VecMath.set(focalPlane.vectors[0], 0.0, 0.0, -1.0);
-        focalPlane.dist = DOF_FOCAL_DIST;
+        focalPlane.dist = dofFocalDist;
 
         Progress prog = new Progress(height);
 
         IntStream.range(0, height).parallel().forEach(i -> {
             Rng.reseed(rowSeed(i));
             for (int j = 0; j < width; j++) {
-                double scrX = SCR_WXL + j * scrDX;
-                double scrY = SCR_HYB + i * scrDY;
+                double scrX = scrWxl + j * scrDX;
+                double scrY = scrHyb + i * scrDY;
 
-                double[] pixelPt = { scrX, scrY, SCR_Z };
+                double[] pixelPt = { scrX, scrY, scrZ };
 
                 // Primary ray from eye through the pixel to find the focus point on the focal plane
-                double[] dofDir = VecMath.direction(EYE, pixelPt);
+                double[] dofDir = VecMath.direction(eye, pixelPt);
                 VecMath.normalize(dofDir);
                 Ray dofRay = Ray.make(pixelPt, dofDir);
 
@@ -224,8 +231,8 @@ public final class Renderer {
                 VecMath.pointOnLine(focusPt, dofRay.point, dofRay.direct, tFocus);
 
                 // Lens origin: bottom-left of the square aperture centred on the pixel
-                double lensOriginX = scrX - DOF_LENS_WIDTH  / 2.0;
-                double lensOriginY = scrY - DOF_LENS_HEIGHT / 2.0;
+                double lensOriginX = scrX - dofLensWidth  / 2.0;
+                double lensOriginY = scrY - dofLensHeight / 2.0;
 
                 double[] acc = new double[3];
 
@@ -234,7 +241,7 @@ public final class Renderer {
                         double[] lensPt = {
                             lensOriginX + dofDX * l + Rng.uniform(0.0, dofDX),
                             lensOriginY + dofDY * k + Rng.uniform(0.0, dofDY),
-                            SCR_Z
+                            scrZ
                         };
                         double[] dir = VecMath.direction(lensPt, focusPt);
                         VecMath.normalize(dir);
