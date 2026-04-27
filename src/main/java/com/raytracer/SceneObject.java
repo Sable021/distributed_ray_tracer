@@ -56,7 +56,7 @@ public class SceneObject {
     /** True if this object emits light. Lights are skipped as shaded surfaces. */
     public boolean isLight;
     /** Pre-computed grid of sample points across an area light's surface. Filled by {@link Sampling#createLightGrid}. */
-    public double[][][] lightGridSample = new double[16][16][3];
+    public double[][][] lightGridSample = new double[Sampling.MAX_GRID_Y][Sampling.MAX_GRID_X][3];
     /** Step vector along the light's local X axis between adjacent grid samples. */
     public double[]     lightGridDX     = new double[3];
     /** Step vector along the light's local Y axis between adjacent grid samples. */

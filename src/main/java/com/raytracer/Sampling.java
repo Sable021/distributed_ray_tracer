@@ -93,47 +93,6 @@ public final class Sampling {
     // -------------------------------------------------------------------------
 
     /**
-     * Build a 2-D jittered sample grid centred at midpt, oriented perpendicular to N.
-     * Grid is a square of side 0.5 (diagonal = DIAG_HALF = sqrt(0.125)).
-     * Returns sample_grid[gsizeY][gsizeX][3].
-     */
-    public static double[][][] createSampleGrid(int gsizeX, int gsizeY, double[] N, double[] midpt) {
-        double DX = 0.5 / gsizeX;
-        double DY = 0.5 / gsizeY;
-
-        double[] V = {0.5, 0.5, 0.5};
-        double[] dia1 = new double[3];
-        double[] dia2 = new double[3];
-        VecMath.cross(dia1, V, N);
-        VecMath.cross(dia2, dia1, N);
-
-        double[] gridOrigin = new double[3];
-        VecMath.pointOnLine(gridOrigin, midpt, dia1, DIAG_HALF);
-
-        double[] gridX = new double[3];
-        VecMath.direction(gridX, dia1, dia2);
-        VecMath.normalize(gridX);
-
-        double[] gridY = new double[3];
-        VecMath.cross(gridY, gridX, N);
-
-        gridX[0] *= DX; gridX[1] *= DX; gridX[2] *= DX;
-        gridY[0] *= DY; gridY[1] *= DY; gridY[2] *= DY;
-
-        double[][][] grid = new double[gsizeY][gsizeX][3];
-        for (int i = 0; i < gsizeY; i++) {
-            for (int j = 0; j < gsizeX; j++) {
-                double rx = Rng.uniform(0.0, DX);
-                double ry = Rng.uniform(0.0, DY);
-                grid[i][j][0] = gridOrigin[0] + (j+rx)*gridX[0] + (i+ry)*gridY[0];
-                grid[i][j][1] = gridOrigin[1] + (j+rx)*gridX[1] + (i+ry)*gridY[1];
-                grid[i][j][2] = gridOrigin[2] + (j+rx)*gridX[2] + (i+ry)*gridY[2];
-            }
-        }
-        return grid;
-    }
-
-    /**
      * Compute one jittered sample point on the glossy reflection grid for the
      * given trace index. Uses stratified (trace_num*7) % gridSize cell selection.
      */

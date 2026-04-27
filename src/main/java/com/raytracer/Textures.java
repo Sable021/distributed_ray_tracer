@@ -4,8 +4,8 @@ import java.util.Random;
 
 /**
  * Procedural surface textures: 3-D Perlin noise plus a small library of colour functions
- * (checkerboard, mixed checks, stripes, Perlin-driven colourful) that {@link Scene} dispatches
- * to from {@link Scene#getObjectColour}.
+ * (checkerboard, mixed checks, stripes) that {@link Scene} dispatches to from
+ * {@link Scene#getObjectColour}.
  *
  * <p>The Perlin permutation table {@code P} and gradient table {@code G3} are populated once
  * in a {@code static {}} block with a fixed seed so noise output is deterministic and stable
@@ -181,20 +181,6 @@ public final class Textures {
                 VecMath.set(colour, xyEven ? 0.4 : 0.0, xyEven ? 0.4 : 0.15, xyEven ? 0.4 : 0.3);
             }
         }
-    }
-
-    /**
-     * Maps the normalized intersection direction to {@code |sin(component)|} per RGB channel,
-     * giving smooth rainbow-style colour fields.
-     *
-     * <p><b>Side effect:</b> mutates {@code intersect} in place (normalizes it). This is
-     * preserved from the C++ source even though it would normally be a bug — callers
-     * downstream rely on the normalized value.
-     */
-    public static void colourful(double[] intersect, double[] colour) {
-        VecMath.normalize(intersect);
-        for (int i = 0; i < 3; i++)
-            colour[i] = Math.abs(Math.sin(intersect[i]));
     }
 
     /**
