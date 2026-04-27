@@ -1,6 +1,6 @@
 # Distributed Ray Tracer
 
-A Java 21 port of a 2003-era distributed ray tracer. Renders a fixed scene featuring Phong shading, reflection, refraction, soft shadows from area lights, and Perlin-noise textures. Output is a 1440x1080 image displayed in a JavaFX window and written to `raytracing.ppm`.
+A Java 21 port of a 2003-era distributed ray tracer. Renders a scene featuring Phong shading, reflection, refraction, soft shadows from area lights, and Perlin-noise textures. Output is a 1440x1080 image displayed in a JavaFX window and written to `raytracing.ppm`. Scene geometry, materials, lights, and camera can be loaded from a JSON file via `--scene=PATH`.
 
 The original C++ source is preserved in `legacy/cpp/` for reference.
 
@@ -17,7 +17,7 @@ The original C++ source is preserved in `legacy/cpp/` for reference.
 ./gradlew run
 ```
 
-Opens a 1440x1080 window that fills in progressively as the scene renders (~10 minutes). When done, writes `raytracing.ppm` to the repo root and updates the window title with the elapsed time.
+Opens a 1440x1080 window that fills in progressively as the scene renders (~10 minutes). A live ray-count overlay (primary / shadow / reflect / refract) updates as each row completes. When done, writes `raytracing.ppm` to the repo root and updates the window title with the elapsed time.
 
 ### Headless — PPM file only (no window)
 
@@ -52,6 +52,15 @@ Renders with a 1x1 sample grid and max depth 2. Completes in ~2 seconds. Useful 
 
 Writes `raytracing.png` or `raytracing.bmp` instead of the default `raytracing.ppm`. Useful since most modern image viewers display PNG/BMP without extra tooling.
 
+### Load scene from JSON
+
+```
+./gradlew run --args="--scene=classic.scene.json"
+./gradlew run --args="--headless --quick --format=png --scene=my.scene.json"
+```
+
+Load scene geometry, materials, lights, and camera from a JSON file instead of the built-in defaults. `classic.scene.json` in the repo root mirrors the hardcoded scene exactly and serves as a starting point. The `"camera"` section is optional — omit it to use the default viewpoint. Supports `//` line comments.
+
 ### Custom resolution
 
 ```
@@ -74,6 +83,7 @@ Renders at the specified pixel dimensions instead of the default 1440×1080. The
 | `--width=N` | `1440` | Image width in pixels |
 | `--height=N` | `1080` | Image height in pixels |
 | `--format=ppm\|png\|bmp` | `ppm` | Output image format |
+| `--scene=PATH` | built-in | Load scene + camera from a JSON file |
 
 ## Output
 
@@ -91,20 +101,24 @@ Output files are excluded from git by `.gitignore`. The C++ reference render at 
 
 ```
 src/main/java/com/raytracer/
-  Main.java        entry point; routes to JavaFX or headless
-  Display.java     JavaFX window with progressive scanline upload
-  Renderer.java    pixel loop (supersampled and DoF modes)
-  RayTracer.java   recursive ray_trace()
-  Scene.java       hardcoded scene geometry and materials
-  Intersect.java   ray/sphere, ray/triangle, ray/plane
-  Textures.java    Perlin noise, checkerboard, strips
-  Sampling.java    light grid and glossy sample helpers
-  VecMath.java     vector math utilities
-  PpmIO.java       P6 PPM writer
-  Rng.java         deterministic RNG (SplittableRandom, fixed seed)
-  Args.java        CLI argument parser
+  Main.java          entry point; routes to JavaFX or headless
+  Display.java       JavaFX window with progressive scanline upload and ray-count overlay
+  Renderer.java      pixel loop (supersampled and DoF modes)
+  RayTracer.java     recursive ray_trace(); tracks per-type ray counts
+  Scene.java         built-in scene geometry and materials
+  SceneLoader.java   Gson-based JSON scene parser
+  CameraConfig.java  camera and screen-plane parameters (record)
+  SceneObject.java   per-object material, geometry, and texture properties
+  Intersect.java     ray/sphere, ray/triangle, ray/plane
+  Textures.java      Perlin noise, checkerboard, strips
+  Sampling.java      light grid and glossy sample helpers
+  VecMath.java       vector math utilities
+  PpmIO.java         P6 PPM writer
+  Rng.java           deterministic RNG (SplittableRandom, fixed seed)
+  Args.java          CLI argument parser
 
-legacy/cpp/        original C++ source (Visual Studio 2003)
+classic.scene.json  JSON mirror of the built-in scene (edit to customise)
+legacy/cpp/         original C++ source (Visual Studio 2003)
 ```
 
 ## VSCode
