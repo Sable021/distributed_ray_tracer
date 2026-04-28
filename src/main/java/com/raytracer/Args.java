@@ -29,6 +29,10 @@ final class Args {
     String format = "ppm";
     /** Path to a JSON scene file, or {@code null} to use the built-in hardcoded scene. */
     java.nio.file.Path scenePath = null;
+    /** Explicit output path, or {@code null} to derive from {@link #format} (e.g. {@code raytracing.png}). */
+    java.nio.file.Path outPath = null;
+    /** Area-light shadow sub-samples per shade call ({@code --shadow-samples=N}, default 4). */
+    int shadowSamples = 4;
 
     /**
      * Parse a raw {@code argv}-style array into an {@code Args}.
@@ -80,6 +84,16 @@ final class Args {
                         }
                     } else if (s.startsWith("--scene=")) {
                         a.scenePath = java.nio.file.Path.of(s.substring("--scene=".length()));
+                    } else if (s.startsWith("--out=")) {
+                        a.outPath = java.nio.file.Path.of(s.substring("--out=".length()));
+                    } else if (s.startsWith("--shadow-samples=")) {
+                        int n = Integer.parseInt(s.substring("--shadow-samples=".length()));
+                        if (n <= 0) {
+                            System.err.println("--shadow-samples must be positive: " + n);
+                            a.printUsage = true;
+                        } else {
+                            a.shadowSamples = n;
+                        }
                     } else {
                         System.err.println("Unknown arg: " + s);
                         a.printUsage = true;
@@ -88,5 +102,10 @@ final class Args {
             }
         }
         return a;
+    }
+
+    /** Returns the output file path: {@link #outPath} if set, otherwise {@code raytracing.<format>}. */
+    java.nio.file.Path resolvedOutPath() {
+        return outPath != null ? outPath : java.nio.file.Path.of("raytracing." + format);
     }
 }

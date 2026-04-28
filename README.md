@@ -52,6 +52,15 @@ Renders with a 1x1 sample grid and max depth 2. Completes in ~2 seconds. Useful 
 
 Writes `raytracing.png` or `raytracing.bmp` instead of the default `raytracing.ppm`. Useful since most modern image viewers display PNG/BMP without extra tooling.
 
+### Custom output path
+
+```
+./gradlew run --args="--headless --out=myrender.png --format=png"
+./gradlew run --args="--headless --quick --out=/tmp/test.bmp --format=bmp"
+```
+
+Writes the image to the given path instead of the default `raytracing.<format>` in the repo root.
+
 ### Load scene from JSON
 
 ```
@@ -83,6 +92,8 @@ Renders at the specified pixel dimensions instead of the default 1440×1080. The
 | `--width=N` | `1440` | Image width in pixels |
 | `--height=N` | `1080` | Image height in pixels |
 | `--format=ppm\|png\|bmp` | `ppm` | Output image format |
+| `--out=PATH` | `raytracing.<format>` | Output file path |
+| `--shadow-samples=N` | `4` | Area-light shadow sub-samples per shade call |
 | `--scene=PATH` | built-in | Load scene + camera from a JSON file |
 
 ## Output
@@ -108,6 +119,7 @@ src/main/java/com/raytracer/
   Scene.java         built-in scene geometry and materials
   SceneLoader.java   Gson-based JSON scene parser
   CameraConfig.java  camera and screen-plane parameters (record)
+  RenderConfig.java  algorithm constants — ambient, shadow samples, etc. (record)
   SceneObject.java   per-object material, geometry, and texture properties
   Intersect.java     ray/sphere, ray/triangle, ray/plane
   Textures.java      Perlin noise, checkerboard, strips

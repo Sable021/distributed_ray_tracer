@@ -22,18 +22,18 @@ public final class ImageOut {
      * {@link ImageIO#write}, which the JRE supports out of the box for {@code "png"}
      * and {@code "bmp"}.
      *
-     * @param format one of {@code "ppm"}, {@code "png"}, or {@code "bmp"}
-     * @param pixels ARGB pixel buffer in bottom-up row order; alpha is ignored
-     * @param height image height in pixels
-     * @param width  image width in pixels
-     * @return absolute path to the file just written (e.g. {@code raytracing.png})
+     * @param format  one of {@code "ppm"}, {@code "png"}, or {@code "bmp"}
+     * @param outPath destination file path (caller computes from {@code --out} or default stem)
+     * @param pixels  ARGB pixel buffer in bottom-up row order; alpha is ignored
+     * @param height  image height in pixels
+     * @param width   image width in pixels
+     * @return absolute path to the file just written
      * @throws IOException if the underlying writer fails or rejects the format
      */
-    public static Path write(String format, int[] pixels, int height, int width) throws IOException {
+    public static Path write(String format, Path outPath, int[] pixels, int height, int width) throws IOException {
         if ("ppm".equals(format)) {
-            Path p = Path.of("raytracing.ppm");
-            PpmIO.write(p, pixels, height, width);
-            return p;
+            PpmIO.write(outPath, pixels, height, width);
+            return outPath;
         }
 
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
@@ -41,10 +41,9 @@ public final class ImageOut {
             int srcRow = height - 1 - y;
             img.setRGB(0, y, width, 1, pixels, srcRow * width, width);
         }
-        Path p = Path.of("raytracing." + format);
-        if (!ImageIO.write(img, format, p.toFile())) {
+        if (!ImageIO.write(img, format, outPath.toFile())) {
             throw new IOException("No ImageIO writer for format: " + format);
         }
-        return p;
+        return outPath;
     }
 }

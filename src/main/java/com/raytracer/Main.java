@@ -57,12 +57,13 @@ public class Main {
             scene  = Scene.initialise();
             camera = CameraConfig.defaults();
         }
+        RenderConfig renderConfig = RenderConfig.defaults().withShadowSamples(args.shadowSamples);
         Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY,
-                                         args.maxDepth, args.width, args.height, camera);
+                                         args.maxDepth, args.width, args.height, camera, renderConfig);
 
         int[] pixels = renderer.render();
 
-        Path out = ImageOut.write(args.format, pixels, renderer.getHeight(), renderer.getWidth());
+        Path out = ImageOut.write(args.format, args.resolvedOutPath(), pixels, renderer.getHeight(), renderer.getWidth());
         System.out.println("Wrote " + out.toAbsolutePath());
     }
 
@@ -77,6 +78,8 @@ public class Main {
         System.out.println("  --width=N          image width in pixels (default 1440)");
         System.out.println("  --height=N         image height in pixels (default 1080)");
         System.out.println("  --format=ppm|png|bmp      output format (default ppm)");
+        System.out.println("  --out=PATH                output file path (default raytracing.<format>)");
+        System.out.println("  --shadow-samples=N        area-light shadow sub-samples (default 4)");
         System.out.println("  --scene=PATH              load scene + camera from a JSON file");
     }
 }

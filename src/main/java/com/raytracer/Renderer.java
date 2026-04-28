@@ -61,6 +61,7 @@ public final class Renderer {
     private final int gridX, gridY;
     private final int width, height;
     private final int maxDepth;
+    private final RenderConfig renderConfig;
     private RowListener rowListener;
 
     /**
@@ -73,17 +74,18 @@ public final class Renderer {
     }
 
     /**
-     * @param scene    pre-initialised scene to render
-     * @param mode     {@link Mode#SUPERSAMPLED} or {@link Mode#DEPTH_OF_FIELD}
-     * @param gridX    supersample (and DoF lens) grid width — total rays per pixel = gridX*gridY
-     * @param gridY    supersample (and DoF lens) grid height
-     * @param maxDepth maximum recursion depth for reflected/refracted rays
-     * @param width    image width in pixels
-     * @param height   image height in pixels
-     * @param camera   camera and screen-plane configuration
+     * @param scene        pre-initialised scene to render
+     * @param mode         {@link Mode#SUPERSAMPLED} or {@link Mode#DEPTH_OF_FIELD}
+     * @param gridX        supersample (and DoF lens) grid width — total rays per pixel = gridX*gridY
+     * @param gridY        supersample (and DoF lens) grid height
+     * @param maxDepth     maximum recursion depth for reflected/refracted rays
+     * @param width        image width in pixels
+     * @param height       image height in pixels
+     * @param camera       camera and screen-plane configuration
+     * @param renderConfig algorithm constants (ambient, shadow samples, etc.)
      */
     public Renderer(Scene scene, Mode mode, int gridX, int gridY, int maxDepth,
-                    int width, int height, CameraConfig camera) {
+                    int width, int height, CameraConfig camera, RenderConfig renderConfig) {
         this.scene  = scene;
         this.mode   = mode;
         this.gridX  = gridX;
@@ -91,6 +93,7 @@ public final class Renderer {
         this.maxDepth = maxDepth;
         this.width  = width;
         this.height = height;
+        this.renderConfig  = renderConfig;
         this.eye          = camera.eye().clone();
         this.scrWxl       = camera.scrWxl();
         this.scrWxr       = camera.scrWxr();
@@ -100,7 +103,7 @@ public final class Renderer {
         this.dofLensWidth = camera.dofLensWidth();
         this.dofLensHeight= camera.dofLensHeight();
         this.dofFocalDist = camera.dofFocalDist();
-        this.rayTracer = new RayTracer(scene, maxDepth, gridX, gridY);
+        this.rayTracer = new RayTracer(scene, maxDepth, gridX, gridY, renderConfig);
 
         // Initialise light grids for area lights (must happen before any rayTrace call)
         for (int i = 0; i < this.scene.numActive; i++) {
@@ -111,7 +114,13 @@ public final class Renderer {
         }
     }
 
-    /** Convenience overload using the default hardcoded camera (C++ scene parity). */
+    /** Convenience overload using default algorithm constants. */
+    public Renderer(Scene scene, Mode mode, int gridX, int gridY, int maxDepth,
+                    int width, int height, CameraConfig camera) {
+        this(scene, mode, gridX, gridY, maxDepth, width, height, camera, RenderConfig.defaults());
+    }
+
+    /** Convenience overload using default camera and default algorithm constants. */
     public Renderer(Scene scene, Mode mode, int gridX, int gridY, int maxDepth, int width, int height) {
         this(scene, mode, gridX, gridY, maxDepth, width, height, CameraConfig.defaults());
     }

@@ -19,22 +19,10 @@ import static com.raytracer.SceneObject.ObjectType.*;
  */
 public final class RayTracer {
 
-    /** Global ambient added to every shaded point — matches C++ global_amb. */
-    private static final double[] GLOBAL_AMB = { 0.05, 0.05, 0.05 };
-
-    /** Area-light shadow sampling: 4 sub-samples per shade call, fixed by C++ behaviour. */
-    private static final int AREA_LIGHT_SUB_SAMPLES = 4;
-
-    /** Per-hit attenuation when a refractive object occludes a shadow ray (C++-derived, not physical). */
-    private static final double REFRACTIVE_SHADOW_ATTENUATION = 0.6;
-
-    /** Above this depth, glossy reflection falls back to the perfect mirror direction —
-     *  the variance from jittered sampling at deep recursion is not worth the recursive cost. */
-    private static final int GLOSSY_MAX_DEPTH = 4;
-
     private final Scene scene;
     private final int maxDepth;
     private final int gridX, gridY;   // area-light stratification grid (matches supersample grid)
+    private final RenderConfig config;
 
     // Ray counters — incremented from every render thread, snapshot via getRayCounts()
     private final AtomicLong primaryRays  = new AtomicLong();
@@ -61,12 +49,14 @@ public final class RayTracer {
      * @param maxDepth maximum recursion depth for reflected/refracted rays
      * @param gridX    supersample/area-light stratification grid width
      * @param gridY    supersample/area-light stratification grid height
+     * @param config   algorithm constants (ambient level, shadow samples, etc.)
      */
-    public RayTracer(Scene scene, int maxDepth, int gridX, int gridY) {
+    public RayTracer(Scene scene, int maxDepth, int gridX, int gridY, RenderConfig config) {
         this.scene = scene;
         this.maxDepth = maxDepth;
         this.gridX = gridX;
         this.gridY = gridY;
+        this.config = config;
     }
 
     // -------------------------------------------------------------------------
@@ -77,9 +67,9 @@ public final class RayTracer {
      * Find the nearest object hit by {@code ray}, writing the intersection point into
      * {@code outIntersect}. Returns the object index, or -1 if the ray misses everything.
      *
-     * <p>{@code depth == 1} (primary rays from the camera) skips
-     * {@link Scene#SKIP_AT_DEPTH_1} so the front-facing area light doesn't eclipse the
-     * scene; secondary rays still see it.
+     * <p>{@code depth == 1} (primary rays from the camera) skips objects whose
+     * {@link SceneObject#skipPrimaryRays} flag is set so the front-facing area light
+     * doesn't eclipse the scene; secondary rays still see it.
      */
     public int intersectScene(Ray ray, double[] outIntersect, int depth) {
         int objectIndex = -1;
@@ -240,7 +230,7 @@ public final class RayTracer {
             VecMath.normalize(reflDir);
 
             Ray reflectRay;
-            if (obj.glossiness <= 0.0 || depth > GLOSSY_MAX_DEPTH) {
+            if (obj.glossiness <= 0.0 || depth > config.glossyMaxDepth()) {
                 reflectRay = Ray.make(intersect, reflDir);
             } else {
                 // Glossy: sample a jittered direction from a grid orthogonal to the perfect reflection
@@ -315,7 +305,7 @@ public final class RayTracer {
                 double[] lgdX = lgd.lightGridDX();
                 double[] lgdY = lgd.lightGridDY();
 
-                for (int k = 0; k < AREA_LIGHT_SUB_SAMPLES; k++) {
+                for (int k = 0; k < config.areaLightSubSamples(); k++) {
                     int[] xy = Sampling.getGridNumber((rayNum + k) % gridSize, gridX, gridY);
                     int gx = xy[0], gy = xy[1];
 
@@ -337,15 +327,15 @@ public final class RayTracer {
                     sampleColour[2] += diffColour[2] + specColour[2];
                 }
 
-                outColour[0] += sampleColour[0] / AREA_LIGHT_SUB_SAMPLES;
-                outColour[1] += sampleColour[1] / AREA_LIGHT_SUB_SAMPLES;
-                outColour[2] += sampleColour[2] / AREA_LIGHT_SUB_SAMPLES;
+                outColour[0] += sampleColour[0] / config.areaLightSubSamples();
+                outColour[1] += sampleColour[1] / config.areaLightSubSamples();
+                outColour[2] += sampleColour[2] / config.areaLightSubSamples();
             }
         }
 
-        outColour[0] += GLOBAL_AMB[0];
-        outColour[1] += GLOBAL_AMB[1];
-        outColour[2] += GLOBAL_AMB[2];
+        outColour[0] += config.globalAmb()[0];
+        outColour[1] += config.globalAmb()[1];
+        outColour[2] += config.globalAmb()[2];
     }
 
     /**
@@ -381,7 +371,7 @@ public final class RayTracer {
             if (blocker.type == PLANE || blocker.isLight) continue;
             if (intersectObject(shadowRay, j) > 0) {
                 if (blocker.refr > 0) {
-                    shadow *= REFRACTIVE_SHADOW_ATTENUATION;
+                    shadow *= config.refractiveShadowAttenuation();
                 } else {
                     shadow = 0;
                     break;

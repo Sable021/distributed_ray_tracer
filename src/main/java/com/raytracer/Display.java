@@ -80,8 +80,9 @@ public class Display extends Application {
                 Platform.runLater(() -> stage.setTitle("Ray Tracer — failed to load scene: " + e.getMessage()));
                 return;
             }
+            RenderConfig renderConfig = RenderConfig.defaults().withShadowSamples(args.shadowSamples);
             Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY,
-                                             args.maxDepth, w, h, camera);
+                                             args.maxDepth, w, h, camera, renderConfig);
 
             renderer.setRowListener((row, pixels, width) -> {
                 // Renderer is bottom-up (row 0 = bottom of image); FX image is top-down.
@@ -105,7 +106,7 @@ public class Display extends Application {
             int[] pixels = renderer.render();
 
             try {
-                Path out = ImageOut.write(args.format, pixels, renderer.getHeight(), renderer.getWidth());
+                Path out = ImageOut.write(args.format, args.resolvedOutPath(), pixels, renderer.getHeight(), renderer.getWidth());
                 long elapsed = (System.currentTimeMillis() - startMs) / 1000;
                 System.out.println("Wrote " + out.toAbsolutePath());
                 Platform.runLater(() -> stage.setTitle(
