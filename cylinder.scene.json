@@ -1,0 +1,106 @@
+{
+  "camera": {
+    "eye": [-0.3, 3.0, 11.0],
+    "screenXLeft": -3.0, "screenXRight": 3.0,
+    "screenYBottom": 1.25, "screenYTop": 5.75, "screenZ": 8.2,
+    "dofLensWidth": 0.4, "dofLensHeight": 0.4, "dofFocalDist": 3.6
+  },
+  "objects": [
+    {
+      "type": "plane", "normal": [0.0, 1.0, 0.0], "dist": 0.0,
+      "colour": [0.4, 0.4, 0.4], "diffuse": 0.8, "refl": 0.3,
+      "texture": "checkerboard"
+    },
+    {
+      "type": "plane", "normal": [1.0, 0.0, 0.0], "dist": 9.0,
+      "colour": [0.7, 0.7, 0.4], "diffuse": 0.5
+    },
+    {
+      "type": "plane", "normal": [-1.0, 0.0, 0.0], "dist": 9.0,
+      "colour": [0.7, 0.7, 0.4], "diffuse": 0.5
+    },
+    {
+      "type": "plane", "normal": [0.0, 0.0, 1.0], "dist": 5.0,
+      "colour": [0.2, 0.6, 0.6], "diffuse": 0.75, "refl": 0.2
+    },
+    {
+      "type": "plane", "normal": [0.0, -1.0, 0.0], "dist": 10.0,
+      "colour": [0.2, 0.6, 0.6], "diffuse": 0.7,
+      "specular_r": 0.4, "n": 20, "refl": 0.4
+    },
+    {
+      "type": "sphere", "centre": [-3.0, 3.0, -1.5], "radius": 2.25,
+      "colour": [0.15, 0.15, 0.15], "diffuse": 1.0,
+      "specular_r": 1.0, "n": 100, "glossiness": 5.0, "refl": 1.0
+    },
+    {
+      "type": "sphere", "centre": [4.2, 2.0, 1.0], "radius": 1.5,
+      "colour": [1.0, 0.0, 0.0], "diffuse": 0.8,
+      "specular_r": 0.75, "n": 40, "glossiness": 0.8, "refl": 0.5
+    },
+    {
+      "type": "sphere", "centre": [4.0, 6.2, 1.0],
+      "radius": 1.5,
+      "colour": [0.7, 0.7, 1.0],
+      "diffuse": 0.8,
+      "specular_r": 0.5,
+      "n": 20,
+      "glossiness": 2.1,
+      "refl": 0.3
+    },
+    {
+      // Glass cylinder replacing the glass sphere.
+      // Sphere was at centre [0.3, 2.0, 3.8] with radius 1.3.
+      // Cylinder lies diagonally toward the camera (axis in the X-Z plane at 45°).
+      // [0.7071, 0, -0.7071] = [1,0,-1] normalised: one end faces the camera, one faces away.
+      // Height = sphere diameter = 2.6; radius = sphere radius / 4 = 0.325.
+      "type": "cylinder",
+      "centre": [0.3, 2.0, 3.8],
+      "axis": [0.7071, 0.0, -0.7071],
+      "radius": 0.325,
+      "height": 2.6,
+      "colour": [0.1, 0.1, 0.1], "rindex": 1.5,
+      "diffuse": 1.0, "specular_r": 0.85, "specular_t": 0.8,
+      "n": 60, "refl": 0.15, "refr": 0.95
+    },
+    {
+      "type": "triangle",
+      "vertices": [[-6.3, 0.0, 2.5], [-3.5, 0.0, 4.5], [-3.0, 0.0, 1.5]],
+      "normal": [0.0, -1.0, 0.0],
+      "colour": [1.0, 1.0, 0.0], "diffuse": 1.0, "texture": "stripes"
+    },
+    {
+      "type": "triangle",
+      "vertices": [[-6.3, 0.0, 2.5], [-3.5, 0.0, 4.5], [-3.8, 3.5, 3.0]],
+      "normal": [-0.556759, 0.287154, 0.779463],
+      "colour": [0.0, 1.0, 0.0], "diffuse": 1.0, "texture": "stripes"
+    },
+    {
+      "type": "triangle",
+      "vertices": [[-3.5, 0.0, 4.5], [-3.0, 0.0, 1.5], [-3.8, 3.5, 3.0]],
+      "normal": [0.984405, 0.063464, 0.164068],
+      "colour": [0.0, 0.0, 1.0], "diffuse": 1.0, "texture": "stripes"
+    },
+    {
+      "type": "triangle",
+      "vertices": [[-3.0, 0.0, 1.5], [-6.3, 0.0, 2.5], [-3.8, 3.5, 3.0]],
+      "normal": [-0.274163, 0.326011, -0.904738],
+      "colour": [1.0, 0.0, 0.0], "diffuse": 1.0, "texture": "stripes"
+    },
+    { "type": "plane", "normal": [0.0,0.0,0.0], "dist": 0.0 },
+    { "type": "plane", "normal": [0.0,0.0,0.0], "dist": 0.0 },
+    {
+      "type": "area_light",
+      "normal": [0.0, -1.0, 0.0], "dist": 9.99,
+      "corners": [[1.0,9.99,0.5],[3.0,9.99,0.5],[3.0,9.99,2.5],[1.0,9.99,2.5]],
+      "colour": [1.0, 1.0, 1.0]
+    },
+    {
+      "type": "area_light",
+      "normal": [0.0, 0.0, -1.0], "dist": 6.0,
+      "corners": [[-1.0,4.0,6.0],[-3.0,4.0,6.0],[-3.0,6.0,6.0],[-1.0,6.0,6.0]],
+      "colour": [1.0, 1.0, 1.0],
+      "skipPrimaryRays": true
+    }
+  ]
+}

@@ -107,6 +107,63 @@ public final class Intersect {
         return t < EPSILON ? -1.0 : t;
     }
 
+    /**
+     * Ray–cylinder intersection. The cylinder is finite, defined by a centre (midpoint of the
+     * axis), a unit axis vector, a radius, and a half-height stored in {@code cyl.dist}.
+     *
+     * <p>Tests the infinite-cylinder quadratic for side hits, clipped to {@code ±halfH} along
+     * the axis, then tests both disc end-caps. Returns the smallest positive {@code t}, or
+     * {@code -1.0} on miss.
+     */
+    public static double rayCylinderIntersect(Ray ray, SceneObject cyl) {
+        double[] O = ray.point, D = ray.direct;
+        double[] C = cyl.vectors[0], A = cyl.vectors[1];
+        double r = cyl.radius, halfH = cyl.dist;
+
+        double dx = O[0]-C[0], dy = O[1]-C[1], dz = O[2]-C[2];
+        double DdotA   = D[0]*A[0] + D[1]*A[1] + D[2]*A[2];
+        double deldotA = dx*A[0]   + dy*A[1]   + dz*A[2];
+
+        // Components of D and delta perpendicular to the axis
+        double dpx = D[0]-DdotA*A[0], dpy = D[1]-DdotA*A[1], dpz = D[2]-DdotA*A[2];
+        double epx = dx-deldotA*A[0], epy = dy-deldotA*A[1], epz = dz-deldotA*A[2];
+
+        double qa = dpx*dpx + dpy*dpy + dpz*dpz;
+        double qb = dpx*epx + dpy*epy + dpz*epz;
+        double qc = epx*epx + epy*epy + epz*epz - r*r;
+
+        double best = Double.POSITIVE_INFINITY;
+
+        // Side surface: solve quadratic, accept if within height bounds
+        if (qa > 1e-12) {
+            double disc = qb*qb - qa*qc;
+            if (disc >= 0) {
+                double sq = Math.sqrt(disc);
+                for (double t : new double[]{ (-qb-sq)/qa, (-qb+sq)/qa }) {
+                    if (t > EPSILON && Math.abs(deldotA + t*DdotA) <= halfH && t < best)
+                        best = t;
+                }
+            }
+        }
+
+        // End caps: intersect ray with each cap plane, accept if within disc radius
+        if (Math.abs(DdotA) > 1e-12) {
+            for (int sign : new int[]{-1, 1}) {
+                double t = (sign * halfH - deldotA) / DdotA;
+                if (t > EPSILON && t < best) {
+                    // At t_cap the axial component of (P-CC) is exactly zero,
+                    // so the full vector magnitude equals the radial distance.
+                    double px = dx+t*D[0]-sign*halfH*A[0];
+                    double py = dy+t*D[1]-sign*halfH*A[1];
+                    double pz = dz+t*D[2]-sign*halfH*A[2];
+                    if (px*px + py*py + pz*pz <= r*r) best = t;
+                }
+            }
+        }
+
+        return best == Double.POSITIVE_INFINITY ? -1.0 : best;
+    }
+
     // -------------------------------------------------------------------------
     // Normal, reflection, refraction
     // -------------------------------------------------------------------------
@@ -124,6 +181,21 @@ public final class Intersect {
                 outNormal[0] = (intersect[0] - obj.vectors[0][0]) / obj.radius;
                 outNormal[1] = (intersect[1] - obj.vectors[0][1]) / obj.radius;
                 outNormal[2] = (intersect[2] - obj.vectors[0][2]) / obj.radius;
+            }
+            case CYLINDER -> {
+                double[] C = obj.vectors[0], A = obj.vectors[1];
+                double dx = intersect[0]-C[0], dy = intersect[1]-C[1], dz = intersect[2]-C[2];
+                double proj = dx*A[0] + dy*A[1] + dz*A[2];
+                if (Math.abs(Math.abs(proj) - obj.dist) < 1e-3) {
+                    // Cap hit: normal points along ±axis
+                    double sign = proj > 0 ? 1.0 : -1.0;
+                    outNormal[0] = sign*A[0]; outNormal[1] = sign*A[1]; outNormal[2] = sign*A[2];
+                } else {
+                    // Side hit: radial normal (perpendicular to axis)
+                    outNormal[0] = dx - proj*A[0];
+                    outNormal[1] = dy - proj*A[1];
+                    outNormal[2] = dz - proj*A[2];
+                }
             }
             default -> System.err.println("getNormal: object is UNASSIGNED");
         }

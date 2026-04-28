@@ -132,6 +132,15 @@ public final class SceneLoader {
                     VecMath.copy(vec3(corners.get(k).getAsJsonArray()), o.vectors[3 + k]);
                 o.dist = dbl(j, "dist", 0.0);
             }
+            case "cylinder" -> {
+                o.type = SceneObject.ObjectType.CYLINDER;
+                VecMath.copy(vec3(j.getAsJsonArray("centre")), o.vectors[0]);
+                double[] axis = vec3(j.getAsJsonArray("axis"));
+                VecMath.normalize(axis);
+                VecMath.copy(axis, o.vectors[1]);
+                o.radius = dbl(j, "radius", 1.0);
+                o.dist   = dbl(j, "height", 2.0) / 2.0;  // store half-height
+            }
             default -> throw new IllegalArgumentException("Unknown object type: " + type);
         }
 

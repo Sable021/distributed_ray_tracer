@@ -11,7 +11,7 @@ package com.raytracer;
 public class SceneObject {
 
     /** Geometry kind. {@code UNASSIGNED} entries are skipped during intersection. */
-    public enum ObjectType { UNASSIGNED, SPHERE, PLANE, TRIANGLE }
+    public enum ObjectType { UNASSIGNED, SPHERE, PLANE, TRIANGLE, CYLINDER }
 
     public ObjectType type = ObjectType.UNASSIGNED;
 
@@ -23,6 +23,8 @@ public class SceneObject {
      *   <li><b>Triangle:</b> {@code [0..2]} = vertices (anticlockwise winding), {@code [3]} = unit normal</li>
      *   <li><b>Light:</b>    {@code [0]} = centre/normal, {@code [1]} = diffuse colour,
      *       {@code [2]} = specular colour, {@code [3..6]} = corners (area light only)</li>
+     *   <li><b>Cylinder:</b> {@code [0]} = centre (midpoint of axis), {@code [1]} = axis unit vector;
+     *       {@code radius} = radius; {@code dist} = half-height</li>
      * </ul>
      */
     public double[][] vectors = new double[7][3];

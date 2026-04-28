@@ -107,8 +107,9 @@ public final class RayTracer {
         if (obj.type == UNASSIGNED) return -1.0;
 
         return switch (obj.type) {
-            case SPHERE   -> Intersect.raySphereIntersect(ray, obj);
-            case TRIANGLE -> Intersect.rayTriIntersect(ray, obj);
+            case SPHERE    -> Intersect.raySphereIntersect(ray, obj);
+            case TRIANGLE  -> Intersect.rayTriIntersect(ray, obj);
+            case CYLINDER  -> Intersect.rayCylinderIntersect(ray, obj);
             case PLANE    -> {
                 double tp = Intersect.rayPlaneIntersect(ray, obj);
                 if (tp > 0.0 && scene.isBoundedQuad(index)) {
