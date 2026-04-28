@@ -96,6 +96,95 @@ Renders at the specified pixel dimensions instead of the default 1440×1080. The
 | `--shadow-samples=N` | `4` | Area-light shadow sub-samples per shade call |
 | `--scene=PATH` | built-in | Load scene + camera from a JSON file |
 
+## Scene file format
+
+JSON files passed to `--scene=PATH` support `//` line comments. The top-level object has two keys:
+
+```json
+{
+  "camera": { ... },   // optional
+  "objects": [ ... ]   // required
+}
+```
+
+### Camera (all fields optional — omitted fields fall back to the built-in defaults)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `eye` | `[x, y, z]` | Camera position in world space |
+| `screenXLeft` / `screenXRight` | number | Horizontal extents of the screen plane |
+| `screenYBottom` / `screenYTop` | number | Vertical extents of the screen plane |
+| `screenZ` | number | Z coordinate of the screen plane |
+| `dofLensWidth` / `dofLensHeight` | number | Aperture size for depth-of-field mode |
+| `dofFocalDist` | number | Focal distance for depth-of-field mode |
+
+### Object types
+
+Each entry in the `"objects"` array has a `"type"` field that determines its geometry. Material fields are listed separately below and apply to all types.
+
+#### `"plane"`
+An infinite flat surface.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `normal` | `[x, y, z]` | Unit outward normal |
+| `dist` | number | Signed distance from the world origin along the normal (`P·n = dist`) |
+
+#### `"sphere"`
+A solid ball.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `centre` | `[x, y, z]` | Centre of the sphere |
+| `radius` | number | Radius |
+
+#### `"triangle"`
+A single-sided triangle. Winding order is anticlockwise when viewed from the front (normal side).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `vertices` | `[[x,y,z], [x,y,z], [x,y,z]]` | Three corner positions |
+| `normal` | `[x, y, z]` | Unit surface normal (precomputed; not derived from vertices) |
+
+#### `"cylinder"`
+A finite capped cylinder.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `centre` | `[x, y, z]` | Midpoint of the axis (not a base centre) |
+| `axis` | `[x, y, z]` | Unit vector along the cylinder's length |
+| `radius` | number | Radius of the circular cross-section and end caps |
+| `height` | number | Total length along the axis |
+
+The cylinder has two flat disc end-caps. When lying on its side, set the `centre` y-coordinate equal to `radius` so the curved surface rests exactly on the floor (y = 0).
+
+#### `"area_light"`
+A rectangular light source. Uses plane geometry internally but is shaded as an emitter.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `normal` | `[x, y, z]` | Unit normal pointing away from the lit side |
+| `dist` | number | Plane distance (same convention as `"plane"`) |
+| `corners` | `[[x,y,z] × 4]` | Four corners of the rectangle (in order) |
+| `colour` | `[r, g, b]` | Emitted light colour |
+| `skipPrimaryRays` | boolean | If `true`, primary (camera) rays skip this light — use for back-wall fill lights that would otherwise eclipse the scene |
+
+### Material fields (all optional, default `0` / `false` / `null`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `colour` | `[r, g, b]` | Base surface colour in [0, 1] |
+| `diffuse` | number | Phong diffuse coefficient k_d |
+| `specular_r` | number | Phong specular-reflection coefficient k_s |
+| `specular_t` | number | Specular-transmission weight (refraction blending) |
+| `n` | integer | Phong shininess exponent — higher = tighter highlight |
+| `refl` | number | Mirror-reflection weight (0 = none, 1 = full mirror) |
+| `refr` | number | Refraction weight (0 = opaque, 1 = fully transmissive) |
+| `rindex` | number | Refractive index (e.g. `1.5` for glass, `1.33` for water) |
+| `glossiness` | number | Glossy-reflection spread radius — `0` = perfect mirror |
+| `texture` | string | Procedural texture: `"checkerboard"` or `"stripes"` |
+| `skipPrimaryRays` | boolean | Skip this object for depth-1 (camera) rays |
+
 ## Output
 
 By default, `raytracing.ppm` is written to the repo root in P6 (binary PPM) format. Open it with any image viewer that supports PPM (e.g. GIMP, IrfanView, `ffmpeg`, `convert` from ImageMagick). With `--format=png` or `--format=bmp`, the renderer writes `raytracing.png` or `raytracing.bmp` instead, both viewable in any standard image viewer.
@@ -121,7 +210,7 @@ src/main/java/com/raytracer/
   CameraConfig.java  camera and screen-plane parameters (record)
   RenderConfig.java  algorithm constants — ambient, shadow samples, etc. (record)
   SceneObject.java   per-object material, geometry, and texture properties
-  Intersect.java     ray/sphere, ray/triangle, ray/plane
+  Intersect.java     ray/sphere, ray/triangle, ray/plane, ray/cylinder
   Textures.java      Perlin noise, checkerboard, strips
   Sampling.java      light grid and glossy sample helpers
   VecMath.java       vector math utilities
@@ -129,8 +218,9 @@ src/main/java/com/raytracer/
   Rng.java           deterministic RNG (SplittableRandom, fixed seed)
   Args.java          CLI argument parser
 
-classic.scene.json  JSON mirror of the built-in scene (edit to customise)
-legacy/cpp/         original C++ source (Visual Studio 2003)
+classic.scene.json   JSON mirror of the built-in scene (edit to customise)
+cylinder.scene.json  classic scene with the glass sphere replaced by a glass cylinder
+legacy/cpp/          original C++ source (Visual Studio 2003)
 ```
 
 ## VSCode

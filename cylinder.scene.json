@@ -41,24 +41,23 @@
     {
       "type": "sphere", "centre": [4.0, 6.2, 1.0],
       "radius": 1.5,
-      "colour": [0.7, 0.7, 1.0],
+      "colour": [0.0, 0.5, 1.0],
       "diffuse": 0.8,
       "specular_r": 0.5,
       "n": 20,
-      "glossiness": 2.1,
-      "refl": 0.3
+      "glossiness": 0,
+      "refl": 0
     },
     {
       // Glass cylinder replacing the glass sphere.
-      // Sphere was at centre [0.3, 2.0, 3.8] with radius 1.3.
       // Cylinder lies diagonally toward the camera (axis in the X-Z plane at 45°).
       // [0.7071, 0, -0.7071] = [1,0,-1] normalised: one end faces the camera, one faces away.
-      // Height = sphere diameter = 2.6; radius = sphere radius / 4 = 0.325.
+      // Radius doubled to 0.65; centre y = radius so the curved side rests on the floor (y=0).
       "type": "cylinder",
-      "centre": [0.3, 2.0, 3.8],
+      "centre": [0.36, 1.0, 3.5],
       "axis": [0.7071, 0.0, -0.7071],
-      "radius": 0.325,
-      "height": 2.6,
+      "radius": 1.0,
+      "height": 3.0,
       "colour": [0.1, 0.1, 0.1], "rindex": 1.5,
       "diffuse": 1.0, "specular_r": 0.85, "specular_t": 0.8,
       "n": 60, "refl": 0.15, "refr": 0.95
