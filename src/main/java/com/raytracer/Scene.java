@@ -18,12 +18,6 @@ public final class Scene {
     /** Number of populated entries; objects at indices 0..16 are valid scene primitives. */
     public static final int NUM_ACTIVE  = 17;
 
-    /**
-     * Primary rays skip object 16 (the back-wall area light). Without this the light would
-     * eclipse the visible scene because it sits between the eye and the back wall.
-     */
-    public static final int SKIP_AT_DEPTH_1 = 16;
-
     /** All scene primitives (length {@link #SIZE}). Use {@link #numActive} to bound iteration. */
     public final SceneObject[] objects;
     /** Number of valid entries in {@link #objects}; equals {@link #NUM_ACTIVE}. */
