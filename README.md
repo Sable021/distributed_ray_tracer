@@ -94,6 +94,7 @@ Renders at the specified pixel dimensions instead of the default 1440×1080. The
 | `--format=ppm\|png\|bmp` | `ppm` | Output image format |
 | `--out=PATH` | `raytracing.<format>` | Output file path |
 | `--shadow-samples=N` | `4` | Area-light shadow sub-samples per shade call |
+| `--tonemap` | off | Apply ACES filmic tone mapping (compresses highlights, prevents clipping) |
 | `--scene=PATH` | built-in | Load scene + camera from a JSON file |
 
 ## Scene file format
