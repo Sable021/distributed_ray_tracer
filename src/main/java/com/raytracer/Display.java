@@ -80,7 +80,7 @@ public class Display extends Application {
                 Platform.runLater(() -> stage.setTitle("Ray Tracer — failed to load scene: " + e.getMessage()));
                 return;
             }
-            RenderConfig renderConfig = RenderConfig.defaults().withShadowSamples(args.shadowSamples);
+            RenderConfig renderConfig = RenderConfig.defaults().withShadowSamples(args.shadowSamples).withAcesTonemap(args.tonemap);
             Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY,
                                              args.maxDepth, w, h, camera, renderConfig);
 

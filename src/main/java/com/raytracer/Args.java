@@ -33,6 +33,8 @@ final class Args {
     java.nio.file.Path outPath = null;
     /** Area-light shadow sub-samples per shade call ({@code --shadow-samples=N}, default 4). */
     int shadowSamples = 4;
+    /** Apply ACES filmic tone mapping before writing pixels ({@code --tonemap}). */
+    boolean tonemap = false;
 
     /**
      * Parse a raw {@code argv}-style array into an {@code Args}.
@@ -49,6 +51,7 @@ final class Args {
             switch (s) {
                 case "--headless" -> a.headless = true;
                 case "--help", "-h" -> a.printUsage = true;
+                case "--tonemap" -> a.tonemap = true;
                 case "--quick" -> {
                     a.gridX = 1; a.gridY = 1; a.maxDepth = 2;
                 }

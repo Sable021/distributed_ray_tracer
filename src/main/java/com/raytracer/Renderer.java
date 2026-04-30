@@ -62,6 +62,7 @@ public final class Renderer {
     private final int width, height;
     private final int maxDepth;
     private final RenderConfig renderConfig;
+    private final boolean acesTonemap;
     private RowListener rowListener;
 
     /**
@@ -94,6 +95,7 @@ public final class Renderer {
         this.width  = width;
         this.height = height;
         this.renderConfig  = renderConfig;
+        this.acesTonemap   = renderConfig.acesTonemap();
         this.eye          = camera.eye().clone();
         this.scrWxl       = camera.scrWxl();
         this.scrWxr       = camera.scrWxr();
@@ -278,15 +280,20 @@ public final class Renderer {
     // Helpers
     // -------------------------------------------------------------------------
 
-    /** Pack an RGB triple in [0,1] into a 0xFFRRGGBB int, clamping each channel. */
-    private static int packArgb(double[] c) {
-        int r = clamp255(c[0]);
-        int g = clamp255(c[1]);
-        int b = clamp255(c[2]);
-        return 0xFF000000 | (r << 16) | (g << 8) | b;
+    /** Pack an RGB triple into a 0xFFRRGGBB int, applying ACES tone mapping if enabled. */
+    private int packArgb(double[] c) {
+        double r = acesTonemap ? acesFilm(c[0]) : c[0];
+        double g = acesTonemap ? acesFilm(c[1]) : c[1];
+        double b = acesTonemap ? acesFilm(c[2]) : c[2];
+        return 0xFF000000 | (clamp255(r) << 16) | (clamp255(g) << 8) | clamp255(b);
     }
 
-    /** Clamp a normalised colour component {@code v ∈ [0, 1]} into the byte range [0, 255]. */
+    /** Narkowicz 2015 ACES filmic approximation — maps [0,∞) to [0,1]. */
+    private static double acesFilm(double x) {
+        return Math.max(0.0, Math.min(1.0, (x * (2.51*x + 0.03)) / (x * (2.43*x + 0.59) + 0.14)));
+    }
+
+    /** Clamp a colour component to the byte range [0, 255]. */
     private static int clamp255(double v) {
         if (v <= 0.0) return 0;
         if (v >= 1.0) return 255;

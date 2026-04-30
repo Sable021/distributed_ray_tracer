@@ -57,7 +57,7 @@ public class Main {
             scene  = Scene.initialise();
             camera = CameraConfig.defaults();
         }
-        RenderConfig renderConfig = RenderConfig.defaults().withShadowSamples(args.shadowSamples);
+        RenderConfig renderConfig = RenderConfig.defaults().withShadowSamples(args.shadowSamples).withAcesTonemap(args.tonemap);
         Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY,
                                          args.maxDepth, args.width, args.height, camera, renderConfig);
 
@@ -80,6 +80,7 @@ public class Main {
         System.out.println("  --format=ppm|png|bmp      output format (default ppm)");
         System.out.println("  --out=PATH                output file path (default raytracing.<format>)");
         System.out.println("  --shadow-samples=N        area-light shadow sub-samples (default 4)");
+        System.out.println("  --tonemap                 apply ACES filmic tone mapping");
         System.out.println("  --scene=PATH              load scene + camera from a JSON file");
     }
 }
