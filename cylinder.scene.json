@@ -41,12 +41,12 @@
     {
       "type": "sphere", "centre": [4.0, 6.2, 1.0],
       "radius": 1.5,
-      "colour": [0.0, 0.5, 1.0],
+      "colour": [0.1, 0.7, 1.0],
       "diffuse": 0.8,
       "specular_r": 0.5,
       "n": 20,
-      "glossiness": 0,
-      "refl": 0
+      "glossiness": 2.1,
+      "refl": 0.5
     },
     {
       // Glass cylinder replacing the glass sphere.
