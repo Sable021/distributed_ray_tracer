@@ -1,38 +1,27 @@
 package com.raytracer;
 
+import com.raytracer.geom.Primitive;
+
 /**
- * Mutable data holder describing a single primitive in the scene: its geometry, material,
+ * Mutable per-scene-element holder bundling a geometric {@link Primitive} with material
  * and (if applicable) light-source attributes.
  *
- * <p>Mirrors the C++ {@code Object} struct one-for-one, using public mutable fields for
- * direct member access in tight loops. The geometry-specific data lives in {@link #vectors}
- * with a per-{@link ObjectType} layout described below.
+ * <p>Geometry lives entirely on {@link #primitive}; pre-Phase-A {@code type/dist/radius}
+ * fields are gone. Material fields and (for lights) emission slots remain on this struct
+ * pending Phase B's {@code Material}/{@code Light} extraction.
  */
 public class SceneObject {
 
-    /** Geometry kind. {@code UNASSIGNED} entries are skipped during intersection. */
-    public enum ObjectType { UNASSIGNED, SPHERE, PLANE, TRIANGLE, CYLINDER }
-
-    public ObjectType type = ObjectType.UNASSIGNED;
+    /** Geometric body. {@code null} means "unassigned slot, skip during intersection". */
+    public Primitive primitive;
 
     /**
-     * Geometry data, indexed [slot][xyz]. Slot meaning depends on {@link #type}:
-     * <ul>
-     *   <li><b>Plane:</b>    {@code [0]} = unit normal</li>
-     *   <li><b>Sphere:</b>   {@code [0]} = centre</li>
-     *   <li><b>Triangle:</b> {@code [0..2]} = vertices (anticlockwise winding), {@code [3]} = unit normal</li>
-     *   <li><b>Light:</b>    {@code [0]} = centre/normal, {@code [1]} = diffuse colour,
-     *       {@code [2]} = specular colour, {@code [3..6]} = corners (area light only)</li>
-     *   <li><b>Cylinder:</b> {@code [0]} = centre (midpoint of axis), {@code [1]} = axis unit vector;
-     *       {@code radius} = radius; {@code dist} = half-height</li>
-     * </ul>
+     * Per-element scratch slots used by light shading (will be replaced by explicit
+     * {@code Light} fields in Phase B). Slot meaning when this object is a light:
+     * {@code [0]} = position/normal, {@code [1]} = diffuse emission RGB,
+     * {@code [2]} = specular emission RGB, {@code [3..6]} = area-light corners.
      */
     public double[][] vectors = new double[7][3];
-
-    /** Plane only: signed distance from the origin along the normal. Unused for other types. */
-    public double dist;
-    /** Sphere only: radius in world units. */
-    public double radius;
 
     // ---- Material parameters ----
     /** Base RGB colour in [0,1]; used directly except where overridden by a procedural texture. */
@@ -72,7 +61,7 @@ public class SceneObject {
     /** Step magnitude along the light's local Y axis (jitter range). */
     public double       lightDY;
 
-    /** Procedural texture name: {@code "checkerboard"}, {@code "stripes"}, or {@code null} (use base colour). */
+    /** Procedural texture name: {@code "checkerboard"}, {@code "stripes"}, or {@code null}. */
     public String  texture;
     /** If true, this object is skipped when tracing primary (depth=1) rays. */
     public boolean skipPrimaryRays;

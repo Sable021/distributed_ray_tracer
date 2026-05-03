@@ -1,6 +1,12 @@
 package com.raytracer;
 
 import com.google.gson.*;
+import com.raytracer.geom.BoundedQuad;
+import com.raytracer.geom.Cylinder;
+import com.raytracer.geom.Plane;
+import com.raytracer.geom.Sphere;
+import com.raytracer.geom.Triangle;
+
 import java.io.*;
 import java.nio.file.*;
 
@@ -99,47 +105,51 @@ public final class SceneLoader {
         String type = j.get("type").getAsString();
         switch (type) {
             case "plane" -> {
-                o.type = SceneObject.ObjectType.PLANE;
-                VecMath.copy(vec3(j.getAsJsonArray("normal")), o.vectors[0]);
-                o.dist = dbl(j, "dist", 0.0);
+                double[] normal = vec3(j.getAsJsonArray("normal"));
+                double dist = dbl(j, "dist", 0.0);
+                o.primitive = new Plane(normal, dist);
             }
             case "sphere" -> {
-                o.type = SceneObject.ObjectType.SPHERE;
-                VecMath.copy(vec3(j.getAsJsonArray("centre")), o.vectors[0]);
-                o.radius = dbl(j, "radius", 1.0);
+                double[] centre = vec3(j.getAsJsonArray("centre"));
+                double radius = dbl(j, "radius", 1.0);
+                o.primitive = new Sphere(centre, radius);
             }
             case "triangle" -> {
-                o.type = SceneObject.ObjectType.TRIANGLE;
                 JsonArray verts = j.getAsJsonArray("vertices");
-                VecMath.copy(vec3(verts.get(0).getAsJsonArray()), o.vectors[0]);
-                VecMath.copy(vec3(verts.get(1).getAsJsonArray()), o.vectors[1]);
-                VecMath.copy(vec3(verts.get(2).getAsJsonArray()), o.vectors[2]);
-                VecMath.copy(vec3(j.getAsJsonArray("normal")), o.vectors[3]);
+                double[] v0 = vec3(verts.get(0).getAsJsonArray());
+                double[] v1 = vec3(verts.get(1).getAsJsonArray());
+                double[] v2 = vec3(verts.get(2).getAsJsonArray());
+                double[] normal = vec3(j.getAsJsonArray("normal"));
+                o.primitive = new Triangle(v0, v1, v2, normal);
             }
             case "area_light" -> {
-                o.type    = SceneObject.ObjectType.PLANE;
                 o.isLight = true;
-                VecMath.copy(vec3(j.getAsJsonArray("normal")), o.vectors[0]);
-                // vectors[1] = diffuse emission colour, vectors[2] = specular emission colour
+                double[] normal = vec3(j.getAsJsonArray("normal"));
+                double dist = dbl(j, "dist", 0.0);
+                JsonArray corners = j.getAsJsonArray("corners");
+                double[] c0 = vec3(corners.get(0).getAsJsonArray());
+                double[] c2 = vec3(corners.get(2).getAsJsonArray());
+                o.primitive = new BoundedQuad(normal, dist, c0, c2);
+
+                // Legacy slot population — RayTracer.shadeObject and Sampling.createLightGrid
+                // still read these. Phase B's Light extraction will eliminate them.
+                VecMath.copy(normal, o.vectors[0]);
                 double[] diffCol = j.has("diffuseColour")
                         ? vec3(j.getAsJsonArray("diffuseColour"))  : new double[]{1.0, 1.0, 1.0};
                 double[] specCol = j.has("specularColour")
                         ? vec3(j.getAsJsonArray("specularColour")) : new double[]{1.0, 1.0, 1.0};
                 VecMath.copy(diffCol,  o.vectors[1]);
                 VecMath.copy(specCol,  o.vectors[2]);
-                JsonArray corners = j.getAsJsonArray("corners");
                 for (int k = 0; k < 4; k++)
                     VecMath.copy(vec3(corners.get(k).getAsJsonArray()), o.vectors[3 + k]);
-                o.dist = dbl(j, "dist", 0.0);
             }
             case "cylinder" -> {
-                o.type = SceneObject.ObjectType.CYLINDER;
-                VecMath.copy(vec3(j.getAsJsonArray("centre")), o.vectors[0]);
+                double[] centre = vec3(j.getAsJsonArray("centre"));
                 double[] axis = vec3(j.getAsJsonArray("axis"));
                 VecMath.normalize(axis);
-                VecMath.copy(axis, o.vectors[1]);
-                o.radius = dbl(j, "radius", 1.0);
-                o.dist   = dbl(j, "height", 2.0) / 2.0;  // store half-height
+                double radius = dbl(j, "radius", 1.0);
+                double halfHeight = dbl(j, "height", 2.0) / 2.0;
+                o.primitive = new Cylinder(centre, axis, radius, halfHeight);
             }
             default -> throw new IllegalArgumentException("Unknown object type: " + type);
         }

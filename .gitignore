@@ -8,6 +8,9 @@ out/
 # VSCode logs (keep settings.json, launch.json, extensions.json)
 .vscode/*.log
 
+# Claude Code per-user local settings
+.claude/settings.local.json
+
 # Render output — anchored to root so legacy/cpp reference PPM is preserved
 /*.ppm
 /*.png

@@ -1,8 +1,10 @@
 package com.raytracer;
 
-import java.util.concurrent.atomic.AtomicLong;
+import com.raytracer.geom.BoundedQuad;
+import com.raytracer.geom.Plane;
+import com.raytracer.geom.Sphere;
 
-import static com.raytracer.SceneObject.ObjectType.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Recursive Phong shader with reflection, refraction, total-internal-reflection, glossy
@@ -78,12 +80,12 @@ public final class RayTracer {
 
         for (int i = 0; i < scene.numActive; i++) {
             SceneObject obj = scene.objects[i];
-            if (obj.type == UNASSIGNED) continue;
+            if (obj.primitive == null) continue;
 
             // Primary rays: skip objects flagged to avoid eclipsing the scene
-            if (depth == 1 && scene.objects[i].skipPrimaryRays) continue;
+            if (depth == 1 && obj.skipPrimaryRays) continue;
 
-            double t = intersectObject(ray, i);
+            double t = obj.primitive.intersect(ray);
             if (t > 0.0 && t < nearestT) {
                 VecMath.pointOnLine(cand, ray.point, ray.direct, t);
                 VecMath.copy(cand, outIntersect);
@@ -94,49 +96,11 @@ public final class RayTracer {
         return objectIndex;
     }
 
-    /**
-     * Test {@code ray} against a single scene object by index, dispatching on its type.
-     * Indices 15/16 are area-light "bounded quads" — infinite planes additionally clipped
-     * to a rectangular region, so a plane hit is rejected if it falls outside the corner
-     * extents stored on the object.
-     *
-     * @return parametric distance along the ray, or -1.0 on miss
-     */
+    /** Test {@code ray} against a single scene object by index. -1.0 on miss. */
     public double intersectObject(Ray ray, int index) {
         SceneObject obj = scene.objects[index];
-        if (obj.type == UNASSIGNED) return -1.0;
-
-        return switch (obj.type) {
-            case SPHERE    -> Intersect.raySphereIntersect(ray, obj);
-            case TRIANGLE  -> Intersect.rayTriIntersect(ray, obj);
-            case CYLINDER  -> Intersect.rayCylinderIntersect(ray, obj);
-            case PLANE    -> {
-                double tp = Intersect.rayPlaneIntersect(ray, obj);
-                if (tp > 0.0 && scene.isBoundedQuad(index)) {
-                    double[] pt = new double[3];
-                    VecMath.pointOnLine(pt, ray.point, ray.direct, tp);
-
-                    double[] normal = obj.vectors[0];
-                    double[] v3 = obj.vectors[3];
-                    double[] v5 = obj.vectors[5];
-
-                    // Along each axis where the plane extends (normal component is 0),
-                    // the intersection must lie between the corner values of vectors[3] and vectors[5].
-                    for (int k = 0; k < 3; k++) {
-                        if (normal[k] == 0.0) {
-                            double lo = Math.min(v3[k], v5[k]);
-                            double hi = Math.max(v3[k], v5[k]);
-                            if (pt[k] < lo || pt[k] > hi) {
-                                tp = -1.0;
-                                break;
-                            }
-                        }
-                    }
-                }
-                yield tp;
-            }
-            default -> -1.0;
-        };
+        if (obj.primitive == null) return -1.0;
+        return obj.primitive.intersect(ray);
     }
 
     // -------------------------------------------------------------------------
@@ -200,7 +164,7 @@ public final class RayTracer {
         // ---- Refraction ----
         if (obj.refr > 0.0 && depth != maxDepth) {
             double objRIndex = obj.rindex;
-            Intersect.getNormal(obj, intersect, N);
+            obj.primitive.normalAt(intersect, N);
 
             if (inside) {
                 N[0] = -N[0]; N[1] = -N[1]; N[2] = -N[2];
@@ -225,7 +189,7 @@ public final class RayTracer {
 
         // ---- Reflection (outside-only) ----
         if (obj.refl > 0.0 && !inside && depth != maxDepth) {
-            Intersect.getNormal(obj, intersect, N);
+            obj.primitive.normalAt(intersect, N);
             double[] reflDir = new double[3];
             Intersect.reflection(ray.direct, N, reflDir);
             VecMath.normalize(reflDir);
@@ -262,12 +226,11 @@ public final class RayTracer {
     /**
      * Compute Phong-shaded local colour at {@code intersect} on object {@code index}.
      *
-     * <p>Iterates over every light in the scene. Point lights ({@code type == SPHERE})
-     * emit a single shadow ray. Area lights ({@code type == PLANE}) take
-     * {@link #AREA_LIGHT_SUB_SAMPLES} stratified jittered samples across the light's
-     * surface for soft shadows. Both contribute diffuse + specular terms; opaque
-     * occluders fully shadow, refractive occluders attenuate by 0.6 per hit. A small
-     * {@link #GLOBAL_AMB} ambient term is always added.
+     * <p>Iterates over every light in the scene. Point lights ({@code primitive instanceof Sphere})
+     * emit a single shadow ray. Area lights ({@code primitive instanceof BoundedQuad}) take
+     * stratified jittered samples across the light's surface for soft shadows. Both
+     * contribute diffuse + specular terms; opaque occluders fully shadow, refractive
+     * occluders attenuate by 0.6 per hit. A small global ambient term is always added.
      */
     private void shadeObject(int index, double[] intersect, double[] view,
                              double[] outColour, int rayNum) {
@@ -284,7 +247,7 @@ public final class RayTracer {
             SceneObject light = scene.objects[i];
             if (!light.isLight) continue;
 
-            if (light.type == SPHERE) {
+            if (light.primitive instanceof Sphere) {
                 // ---- Point light: single shadow ray ----
                 VecMath.direction(L, intersect, light.vectors[0]);
                 VecMath.normalize(L);
@@ -297,8 +260,8 @@ public final class RayTracer {
                 outColour[1] += diffColour[1] + specColour[1];
                 outColour[2] += diffColour[2] + specColour[2];
 
-            } else if (light.type == PLANE) {
-                // ---- Area light: average AREA_LIGHT_SUB_SAMPLES jittered shadow rays ----
+            } else if (light.primitive instanceof BoundedQuad) {
+                // ---- Area light: average areaLightSubSamples jittered shadow rays ----
                 double[] sampleVertex = new double[3];
                 double[] sampleColour = new double[3];
 
@@ -346,7 +309,7 @@ public final class RayTracer {
      * entry, so callers can sum them directly without pre-clearing.
      *
      * <p>Opaque occluders zero the contribution; refractive occluders attenuate by
-     * {@code 0.6} per hit. Planes and lights are never treated as shadow casters.
+     * {@code 0.6} per hit. Walls (Plane) and lights are never treated as shadow casters.
      *
      * <p>Note the {@code Math.max(0, view·R)} clamp before {@code Math.pow}: Java's
      * {@code Math.pow} returns {@code NaN} for a negative base with a non-integer
@@ -369,7 +332,7 @@ public final class RayTracer {
         double shadow = 1.0;
         for (int j = 0; j < shadowCasterEnd; j++) {
             SceneObject blocker = scene.objects[j];
-            if (blocker.type == PLANE || blocker.isLight) continue;
+            if (blocker.primitive instanceof Plane || blocker.isLight) continue;
             if (intersectObject(shadowRay, j) > 0) {
                 if (blocker.refr > 0) {
                     shadow *= config.refractiveShadowAttenuation();
@@ -386,7 +349,8 @@ public final class RayTracer {
         SceneObject light = scene.objects[lightIdx];
 
         double[] N = new double[3];
-        Intersect.getNormal(self, intersect, N);
+        self.primitive.normalAt(intersect, N);
+        VecMath.normalize(N);
         double NdotL = VecMath.dot(N, L);
         if (NdotL <= 0) return;
 

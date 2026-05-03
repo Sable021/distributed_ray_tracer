@@ -1,9 +1,10 @@
 package com.raytracer;
 
+import com.raytracer.geom.BoundedQuad;
+import com.raytracer.geom.Plane;
+
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
-
-import static com.raytracer.SceneObject.ObjectType.*;
 
 /**
  * Top-level pixel loop, owning the camera + screen-plane geometry and dispatching to
@@ -110,7 +111,7 @@ public final class Renderer {
         // Initialise light grids for area lights (must happen before any rayTrace call)
         for (int i = 0; i < this.scene.numActive; i++) {
             SceneObject o = scene.objects[i];
-            if (o.isLight && o.type == PLANE) {
+            if (o.isLight && o.primitive instanceof BoundedQuad) {
                 Sampling.createLightGrid(gridX, gridY, o);
             }
         }
@@ -211,10 +212,7 @@ public final class Renderer {
         double dofDY = dofLensHeight / gridY;
 
         // Build a synthetic focal plane at z = scrZ - dofFocalDist (normal (0,0,-1))
-        SceneObject focalPlane = new SceneObject();
-        focalPlane.type = PLANE;
-        VecMath.set(focalPlane.vectors[0], 0.0, 0.0, -1.0);
-        focalPlane.dist = dofFocalDist;
+        Plane focalPlane = new Plane(new double[]{0.0, 0.0, -1.0}, dofFocalDist);
 
         Progress prog = new Progress(height);
 
@@ -231,7 +229,7 @@ public final class Renderer {
                 VecMath.normalize(dofDir);
                 Ray dofRay = Ray.make(pixelPt, dofDir);
 
-                double tFocus = Intersect.rayPlaneIntersect(dofRay, focalPlane);
+                double tFocus = focalPlane.intersect(dofRay);
                 if (tFocus <= 0.0) {
                     // eye ray missed focal plane — skip this pixel
                     pixels[i * width + j] = 0xFF000000;
