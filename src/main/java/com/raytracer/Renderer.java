@@ -1,7 +1,8 @@
 package com.raytracer;
 
-import com.raytracer.geom.BoundedQuad;
 import com.raytracer.geom.Plane;
+import com.raytracer.shading.AreaLight;
+import com.raytracer.shading.Light;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
@@ -109,10 +110,9 @@ public final class Renderer {
         this.rayTracer = new RayTracer(scene, maxDepth, gridX, gridY, renderConfig);
 
         // Initialise light grids for area lights (must happen before any rayTrace call)
-        for (int i = 0; i < this.scene.numActive; i++) {
-            SceneObject o = scene.objects[i];
-            if (o.isLight && o.primitive instanceof BoundedQuad) {
-                Sampling.createLightGrid(gridX, gridY, o);
+        for (Light light : this.scene.lights) {
+            if (light instanceof AreaLight area) {
+                area.buildGrid(gridX, gridY);
             }
         }
     }

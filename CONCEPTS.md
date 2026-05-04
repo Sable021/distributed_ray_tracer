@@ -83,7 +83,7 @@ colour = ambient
 
 where `N` is the surface normal, `L` is the unit vector to the light, `R = 2(N·L)N − L` is the reflection of `L` about `N`, `V` is the view vector (toward the eye), and `n` is the shininess exponent (`RayTracer.shadeObject`, `RayTracer.java:256`).
 
-- `kd` (diffuse), `ks` (specular), and `n` come from the material on each `SceneObject` (`SceneObject.java:46-53`).
+- `kd` (diffuse), `ks` (specular), and `n` come from the `PhongBRDF` on each `Material` (`shading/PhongBRDF.java`).
 - A small global ambient `(0.05, 0.05, 0.05)` is added to every shaded point (`RayTracer.java:24`, `RayTracer.java:404`).
 - The `max(0, V·R)` clamp before `Math.pow` is a Java-specific fix: `Math.pow` on a negative base with a non-integer exponent returns `NaN`, which would produce black-pixel artefacts at glancing angles (`RayTracer.java:312`).
 
@@ -176,13 +176,13 @@ The RNG (`Rng.java`) is a `SplittableRandom` reseeded deterministically per scan
 
 ## 12. Procedural textures
 
-Two surfaces use procedural (computed-from-position) colours rather than flat material colour: the floor and the four faces of the tetrahedron (`Scene.getObjectColour`, `Scene.java:212`).
+Two surfaces use procedural (computed-from-position) colours rather than flat material colour: the floor and the four faces of the tetrahedron. Each `Material` carries a `Texture albedo` that is sampled by `Scene.getObjectColour`.
 
-- **`mixChecks`** (`Textures.java:157`): a checkerboard whose coordinates are first warped through `sin()` per axis, giving a slightly-distorted check on the floor.
-- **`strips`** (`Textures.java:205`): a wood-grain-style banded pattern. Computes a polar radius and angle from the sin-warped intersection, modulates the radius by `sin(20·angle)`, and quantises into one of two palette colours.
-- **`noise`** (`Textures.java:67`): classic 3-D Perlin noise with a fixed-seed permutation table. Not currently called, but kept for completeness — the original C++ used it for `colourful`-style textures (`Textures.java:194`).
+- **`CheckerTexture`** (`shading/CheckerTexture.java`): a checkerboard whose coordinates are first warped through `sin()` per axis, giving a slightly-distorted check on the floor.
+- **`StripesTexture`** (`shading/StripesTexture.java`): a wood-grain-style banded pattern. Computes a polar radius and angle from the sin-warped intersection, modulates the radius by `sin(20·angle)`, and quantises into one of two palette colours.
+- **`PerlinNoise.noise`** (`shading/PerlinNoise.java`): classic 3-D Perlin noise with a fixed-seed permutation table. Not currently called, but kept for completeness — the original C++ used it for `colourful`-style textures.
 
-The Perlin tables are populated once in a `static {}` block with seed `12345L` (`Textures.java:30-56`) so noise is deterministic and does not vary between runs.
+The Perlin tables are populated once in a `static {}` block with seed `12345L` so noise is deterministic and does not vary between runs.
 
 ## 13. Scene composition
 

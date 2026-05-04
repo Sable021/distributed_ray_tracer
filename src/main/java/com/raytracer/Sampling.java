@@ -1,17 +1,14 @@
 package com.raytracer;
 
 /**
- * Sampling helpers used by the renderer's distributed-ray-tracing features.
+ * Stratified-sampling helpers for glossy reflection rays and area-light shadow rays.
  *
- * <p>Two responsibilities, kept together because they share the same stratified
- * grid concept:
- * <ul>
- *   <li><b>Area-light grids</b> — pre-compute a regular grid of points across each
- *       area light's surface so {@link RayTracer} can take stratified shadow samples.</li>
- *   <li><b>Glossy reflection grids</b> — given a perfect-reflection direction, build
- *       a grid of jittered alternative directions perpendicular to the reflection
- *       vector, used to soften mirror reflections into glossy ones.</li>
- * </ul>
+ * <p>{@link #getSampleVertex} jitters within a grid orthogonal to the perfect-reflection
+ * direction. {@link #getGridNumber} maps a trace number to a 2-D grid cell using a
+ * {@code *7} scrambler so adjacent rays sample different cells. (Phase B's
+ * {@code AreaLight} owns its own light-grid storage; what remains here is shared between
+ * area-light sampling and glossy-reflection sampling. Phase D will fold these into a
+ * {@code Sampler} interface.)
  */
 public final class Sampling {
 
@@ -19,79 +16,6 @@ public final class Sampling {
 
     /** sqrt(0.125) — diagonal offset for the glossy reflection sample grid */
     static final double DIAG_HALF = Math.sqrt(0.125);
-
-    // -------------------------------------------------------------------------
-    // Area light grid — stored directly on the SceneObject
-    // -------------------------------------------------------------------------
-
-    /**
-     * Populate obj.lightGridSample with uniformly-spaced grid points across the
-     * area light's surface. Corners are in obj.vectors[3..6].
-     */
-    public static void createLightGrid(int gsizeX, int gsizeY, SceneObject obj) {
-        if (!obj.isLight) {
-            System.err.println("createLightGrid: object is not a light");
-            return;
-        }
-
-        // Allocate the sample buffer to match the requested grid size — the grid is
-        // configurable at runtime via --grid=N, so we cannot pre-size this field.
-        obj.lightGridSample = new double[gsizeY][gsizeX][3];
-
-        double[] directX = new double[3];
-        double[] directY = new double[3];
-        VecMath.direction(directX, obj.vectors[3], obj.vectors[4]);
-        VecMath.direction(directY, obj.vectors[3], obj.vectors[6]);
-
-        double lenX = VecMath.magnitude(directX);
-        double lenY = VecMath.magnitude(directY);
-
-        VecMath.normalize(directX);
-        VecMath.normalize(directY);
-
-        double[] gridOrigin = new double[3];
-        VecMath.copy(obj.vectors[3], gridOrigin);
-
-        double[] gridDX = new double[]{
-            (lenX / gsizeX) * directX[0],
-            (lenX / gsizeX) * directX[1],
-            (lenX / gsizeX) * directX[2]
-        };
-        double[] gridDY = new double[]{
-            (lenY / gsizeY) * directY[0],
-            (lenY / gsizeY) * directY[1],
-            (lenY / gsizeY) * directY[2]
-        };
-
-        VecMath.copy(gridDX, obj.lightGridDX);
-        VecMath.copy(gridDY, obj.lightGridDY);
-        obj.lightDX = lenX / gsizeX;
-        obj.lightDY = lenY / gsizeY;
-
-        for (int i = 0; i < gsizeY; i++) {
-            for (int j = 0; j < gsizeX; j++) {
-                obj.lightGridSample[i][j][0] = gridOrigin[0] + j*gridDX[0] + i*gridDY[0];
-                obj.lightGridSample[i][j][1] = gridOrigin[1] + j*gridDX[1] + i*gridDY[1];
-                obj.lightGridSample[i][j][2] = gridOrigin[2] + j*gridDX[2] + i*gridDY[2];
-            }
-        }
-    }
-
-    /** Holder for the four output values of getLightGridDelta */
-    public record LightGridDelta(double lightDX, double lightDY,
-                                 double[] lightGridDX, double[] lightGridDY) {}
-
-    public static LightGridDelta getLightGridDelta(SceneObject obj) {
-        double[] dx = new double[3];
-        double[] dy = new double[3];
-        VecMath.copy(obj.lightGridDX, dx);
-        VecMath.copy(obj.lightGridDY, dy);
-        return new LightGridDelta(obj.lightDX, obj.lightDY, dx, dy);
-    }
-
-    // -------------------------------------------------------------------------
-    // Glossy reflection / refraction sample grid
-    // -------------------------------------------------------------------------
 
     /**
      * Compute one jittered sample point on the glossy reflection grid for the

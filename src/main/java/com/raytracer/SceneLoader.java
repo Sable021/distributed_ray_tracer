@@ -6,9 +6,19 @@ import com.raytracer.geom.Cylinder;
 import com.raytracer.geom.Plane;
 import com.raytracer.geom.Sphere;
 import com.raytracer.geom.Triangle;
+import com.raytracer.shading.AreaLight;
+import com.raytracer.shading.CheckerTexture;
+import com.raytracer.shading.Light;
+import com.raytracer.shading.Material;
+import com.raytracer.shading.PhongBRDF;
+import com.raytracer.shading.SolidColorTexture;
+import com.raytracer.shading.StripesTexture;
+import com.raytracer.shading.Texture;
 
 import java.io.*;
 import java.nio.file.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Loads a scene and camera configuration from a JSON file.
@@ -40,6 +50,7 @@ import java.nio.file.*;
  * <p>Material fields ({@code diffuse}, {@code specular_r}, {@code specular_t}, {@code n},
  * {@code refl}, {@code refr}, {@code rindex}, {@code glossiness}, {@code texture},
  * {@code skipPrimaryRays}) are all optional and default to 0 / false / null when absent.
+ * {@code specular_t} is accepted for backward compatibility but currently unused.
  */
 public final class SceneLoader {
 
@@ -97,22 +108,26 @@ public final class SceneLoader {
         int count = arr.size();
         SceneObject[] objects = new SceneObject[count];
         for (int i = 0; i < count; i++) objects[i] = new SceneObject();
-        for (int i = 0; i < count; i++) parseObject(arr.get(i).getAsJsonObject(), objects[i]);
-        return new Scene(objects, count);
+
+        List<Light> lights = new ArrayList<>();
+        for (int i = 0; i < count; i++) parseObject(arr.get(i).getAsJsonObject(), objects[i], lights);
+        return new Scene(objects, count, lights);
     }
 
-    private static void parseObject(JsonObject j, SceneObject o) {
+    private static void parseObject(JsonObject j, SceneObject o, List<Light> lights) {
         String type = j.get("type").getAsString();
         switch (type) {
             case "plane" -> {
                 double[] normal = vec3(j.getAsJsonArray("normal"));
                 double dist = dbl(j, "dist", 0.0);
                 o.primitive = new Plane(normal, dist);
+                o.material  = parseMaterial(j);
             }
             case "sphere" -> {
                 double[] centre = vec3(j.getAsJsonArray("centre"));
                 double radius = dbl(j, "radius", 1.0);
                 o.primitive = new Sphere(centre, radius);
+                o.material  = parseMaterial(j);
             }
             case "triangle" -> {
                 JsonArray verts = j.getAsJsonArray("vertices");
@@ -121,27 +136,22 @@ public final class SceneLoader {
                 double[] v2 = vec3(verts.get(2).getAsJsonArray());
                 double[] normal = vec3(j.getAsJsonArray("normal"));
                 o.primitive = new Triangle(v0, v1, v2, normal);
+                o.material  = parseMaterial(j);
             }
             case "area_light" -> {
-                o.isLight = true;
                 double[] normal = vec3(j.getAsJsonArray("normal"));
                 double dist = dbl(j, "dist", 0.0);
-                JsonArray corners = j.getAsJsonArray("corners");
-                double[] c0 = vec3(corners.get(0).getAsJsonArray());
-                double[] c2 = vec3(corners.get(2).getAsJsonArray());
-                o.primitive = new BoundedQuad(normal, dist, c0, c2);
+                JsonArray cornersJson = j.getAsJsonArray("corners");
+                double[][] corners = new double[4][3];
+                for (int k = 0; k < 4; k++) corners[k] = vec3(cornersJson.get(k).getAsJsonArray());
+                o.primitive = new BoundedQuad(normal, dist, corners[0], corners[2]);
+                o.material  = null;
 
-                // Legacy slot population — RayTracer.shadeObject and Sampling.createLightGrid
-                // still read these. Phase B's Light extraction will eliminate them.
-                VecMath.copy(normal, o.vectors[0]);
                 double[] diffCol = j.has("diffuseColour")
                         ? vec3(j.getAsJsonArray("diffuseColour"))  : new double[]{1.0, 1.0, 1.0};
                 double[] specCol = j.has("specularColour")
                         ? vec3(j.getAsJsonArray("specularColour")) : new double[]{1.0, 1.0, 1.0};
-                VecMath.copy(diffCol,  o.vectors[1]);
-                VecMath.copy(specCol,  o.vectors[2]);
-                for (int k = 0; k < 4; k++)
-                    VecMath.copy(vec3(corners.get(k).getAsJsonArray()), o.vectors[3 + k]);
+                lights.add(new AreaLight(diffCol, specCol, corners));
             }
             case "cylinder" -> {
                 double[] centre = vec3(j.getAsJsonArray("centre"));
@@ -150,22 +160,40 @@ public final class SceneLoader {
                 double radius = dbl(j, "radius", 1.0);
                 double halfHeight = dbl(j, "height", 2.0) / 2.0;
                 o.primitive = new Cylinder(centre, axis, radius, halfHeight);
+                o.material  = parseMaterial(j);
             }
             default -> throw new IllegalArgumentException("Unknown object type: " + type);
         }
 
-        // Material fields — all optional
-        if (j.has("colour"))      VecMath.copy(vec3(j.getAsJsonArray("colour")), o.colour);
-        o.diffuse    = dbl(j, "diffuse",    0.0);
-        o.specular_r = dbl(j, "specular_r", 0.0);
-        o.specular_t = dbl(j, "specular_t", 0.0);
-        o.n          = j.has("n") ? j.get("n").getAsInt() : 0;
-        o.refl       = dbl(j, "refl",       0.0);
-        o.refr       = dbl(j, "refr",       0.0);
-        o.rindex     = dbl(j, "rindex",     0.0);
-        o.glossiness = dbl(j, "glossiness", 0.0);
-        if (j.has("texture"))         o.texture         = j.get("texture").getAsString();
         if (j.has("skipPrimaryRays")) o.skipPrimaryRays = j.get("skipPrimaryRays").getAsBoolean();
+    }
+
+    private static Material parseMaterial(JsonObject j) {
+        Texture albedo;
+        if (j.has("texture")) {
+            String name = j.get("texture").getAsString();
+            albedo = switch (name) {
+                case "checkerboard" -> new CheckerTexture();
+                case "stripes"      -> new StripesTexture();
+                default -> throw new IllegalArgumentException("Unknown texture: " + name);
+            };
+        } else if (j.has("colour")) {
+            albedo = new SolidColorTexture(vec3(j.getAsJsonArray("colour")));
+        } else {
+            albedo = new SolidColorTexture(0.0, 0.0, 0.0);
+        }
+
+        double kd = dbl(j, "diffuse",    0.0);
+        double ks = dbl(j, "specular_r", 0.0);
+        int    nn = j.has("n") ? j.get("n").getAsInt() : 0;
+        // specular_t accepted but unused — preserved in JSON schema for back-compat
+        // double kt = dbl(j, "specular_t", 0.0);
+        double refl       = dbl(j, "refl",       0.0);
+        double refr       = dbl(j, "refr",       0.0);
+        double rindex     = dbl(j, "rindex",     0.0);
+        double glossiness = dbl(j, "glossiness", 0.0);
+
+        return new Material(albedo, new PhongBRDF(kd, ks, nn), refl, refr, rindex, glossiness);
     }
 
     // -------------------------------------------------------------------------
