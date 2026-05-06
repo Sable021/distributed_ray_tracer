@@ -1,6 +1,12 @@
 package com.raytracer;
 
 import com.raytracer.geom.Plane;
+import com.raytracer.render.Accelerator;
+import com.raytracer.render.LinearAccelerator;
+import com.raytracer.render.RandomSource;
+import com.raytracer.render.Sampler;
+import com.raytracer.render.StratifiedSampler;
+import com.raytracer.render.ThreadLocalRandomSource;
 import com.raytracer.shading.AreaLight;
 import com.raytracer.shading.Light;
 
@@ -66,6 +72,7 @@ public final class Renderer {
     private final int maxDepth;
     private final RenderConfig renderConfig;
     private final boolean acesTonemap;
+    private final RandomSource rng;
     private RowListener rowListener;
 
     /**
@@ -108,7 +115,13 @@ public final class Renderer {
         this.dofLensWidth = camera.dofLensWidth();
         this.dofLensHeight= camera.dofLensHeight();
         this.dofFocalDist = camera.dofFocalDist();
-        this.rayTracer = new RayTracer(scene, maxDepth, gridX, gridY, renderConfig);
+
+        Accelerator accelerator = new LinearAccelerator();
+        accelerator.build(scene);
+        this.rng = new ThreadLocalRandomSource();
+        Sampler sampler = new StratifiedSampler();
+        this.rayTracer = new RayTracer(scene, maxDepth, gridX, gridY, renderConfig,
+                                       accelerator, this.rng, sampler);
 
         // Initialise light grids for area lights (must happen before any rayTrace call)
         for (Light light : this.scene.lights) {
@@ -162,7 +175,7 @@ public final class Renderer {
         Progress prog = new Progress(height);
 
         IntStream.range(0, height).parallel().forEach(i -> {
-            Rng.reseed(rowSeed(i));
+            rng.reseed(rowSeed(i));
             for (int j = 0; j < width; j++) {
                 double scrX = scrWxl + j * scrDX;
                 double scrY = scrHyb + i * scrDY;
@@ -172,8 +185,8 @@ public final class Renderer {
                 for (int k = 0; k < gridY; k++) {
                     for (int l = 0; l < gridX; l++) {
                         double[] sub = {
-                            scrX + (scrDX / gridX) * l + Rng.uniform(0.0, scrDX / gridX),
-                            scrY + (scrDY / gridY) * k + Rng.uniform(0.0, scrDY / gridY),
+                            scrX + (scrDX / gridX) * l + rng.uniform(0.0, scrDX / gridX),
+                            scrY + (scrDY / gridY) * k + rng.uniform(0.0, scrDY / gridY),
                             scrZ
                         };
                         double[] dir = VecMath.direction(eye, sub);
@@ -218,7 +231,7 @@ public final class Renderer {
         Progress prog = new Progress(height);
 
         IntStream.range(0, height).parallel().forEach(i -> {
-            Rng.reseed(rowSeed(i));
+            rng.reseed(rowSeed(i));
             for (int j = 0; j < width; j++) {
                 double scrX = scrWxl + j * scrDX;
                 double scrY = scrHyb + i * scrDY;
@@ -249,8 +262,8 @@ public final class Renderer {
                 for (int k = 0; k < gridY; k++) {
                     for (int l = 0; l < gridX; l++) {
                         double[] lensPt = {
-                            lensOriginX + dofDX * l + Rng.uniform(0.0, dofDX),
-                            lensOriginY + dofDY * k + Rng.uniform(0.0, dofDY),
+                            lensOriginX + dofDX * l + rng.uniform(0.0, dofDX),
+                            lensOriginY + dofDY * k + rng.uniform(0.0, dofDY),
                             scrZ
                         };
                         double[] dir = VecMath.direction(lensPt, focusPt);

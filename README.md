@@ -215,9 +215,9 @@ src/main/java/com/raytracer/
   shading/           Material, BRDF (Phong), Light (Point/Area), Texture (Solid/Checker/Stripes/PerlinNoise)
   io/                ImageWriter dispatch: PpmImageWriter (P6), ImageIoImageWriter (PNG/BMP)
   scene/             SceneFormat dispatch: HardcodedSceneFormat (built-in), JsonSceneFormat
-  Sampling.java      stratified sampler for glossy reflections (area-light grid lives on AreaLight)
+  render/            Accelerator (linear scan), RandomSource (ThreadLocal SplittableRandom),
+                     Sampler (stratified *7 scrambler)
   VecMath.java       vector math utilities
-  Rng.java           deterministic RNG (SplittableRandom, fixed seed)
   Args.java          CLI argument parser
 
 classic.scene.json   JSON mirror of the built-in scene (edit to customise)

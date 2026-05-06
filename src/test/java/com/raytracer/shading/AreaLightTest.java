@@ -1,6 +1,9 @@
 package com.raytracer.shading;
 
-import com.raytracer.Rng;
+import com.raytracer.render.RandomSource;
+import com.raytracer.render.Sampler;
+import com.raytracer.render.StratifiedSampler;
+import com.raytracer.render.ThreadLocalRandomSource;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -49,9 +52,11 @@ class AreaLightTest {
                 new double[]{1, 1, 1},
                 new double[]{1, 1, 1},
                 unitSquare());
+        RandomSource rng = new ThreadLocalRandomSource();
+        Sampler sampler = new StratifiedSampler();
 
         assertThrows(RuntimeException.class,
-                     () -> al.samplePosition(0, 0, new double[3]));
+                     () -> al.samplePosition(0, 0, rng, sampler, new double[3]));
     }
 
     /**
@@ -67,12 +72,14 @@ class AreaLightTest {
         al.buildGrid(4, 4);
 
         // Use a fixed seed so this test is deterministic regardless of test ordering.
-        Rng.reseed(0xDEADBEEFL);
+        RandomSource rng = new ThreadLocalRandomSource();
+        rng.reseed(0xDEADBEEFL);
+        Sampler sampler = new StratifiedSampler();
         double[] out = new double[3];
 
         for (int rayNum = 0; rayNum < 16; rayNum++) {
             for (int k = 0; k < 4; k++) {
-                al.samplePosition(k, rayNum, out);
+                al.samplePosition(k, rayNum, rng, sampler, out);
                 assertTrue(out[0] >= 0.0 && out[0] <= 1.0, "x in [0,1]: " + out[0]);
                 assertEquals(10.0, out[1], 1e-12);
                 assertTrue(out[2] >= 0.0 && out[2] <= 1.0, "z in [0,1]: " + out[2]);

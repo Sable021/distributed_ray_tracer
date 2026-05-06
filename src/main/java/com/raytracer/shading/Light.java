@@ -1,5 +1,8 @@
 package com.raytracer.shading;
 
+import com.raytracer.render.RandomSource;
+import com.raytracer.render.Sampler;
+
 /**
  * Light source contract. Both point lights (single shadow ray) and area lights (multiple
  * stratified shadow rays) implement this interface; the shader treats them uniformly,
@@ -23,9 +26,11 @@ public sealed interface Light permits PointLight, AreaLight {
 
     /**
      * Fill {@code out} with the world-space position of the {@code k}-th shadow sample.
-     * Stratification uses {@code rayNum} so adjacent primary rays sample different cells.
+     * Stratification uses {@code rayNum} (via {@code sampler}) so adjacent primary rays
+     * sample different cells; jitter within a cell uses {@code rng}. Point lights ignore
+     * both injectables.
      */
-    void samplePosition(int k, int rayNum, double[] out);
+    void samplePosition(int k, int rayNum, RandomSource rng, Sampler sampler, double[] out);
 
     /**
      * Exclusive upper bound for the shadow-caster scan when shadow-testing this light.

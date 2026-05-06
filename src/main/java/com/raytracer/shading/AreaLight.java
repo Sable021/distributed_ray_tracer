@@ -1,12 +1,12 @@
 package com.raytracer.shading;
 
-import com.raytracer.Rng;
-import com.raytracer.Sampling;
 import com.raytracer.VecMath;
+import com.raytracer.render.RandomSource;
+import com.raytracer.render.Sampler;
 
 /**
  * Quad-shaped emitter sampled by a stratified grid of jittered shadow rays for soft
- * shadows. Owns its own grid (replacing the pre-Phase-B {@code Sampling.createLightGrid}
+ * shadows. Owns its own grid (replacing the pre-Phase-B {@code createLightGrid}
  * side-effect on {@code SceneObject}).
  *
  * <p>Construct with the four corners; call {@link #buildGrid(int, int)} once, before any
@@ -72,13 +72,13 @@ public final class AreaLight implements Light {
     @Override public int      sampleCount(int areaSubSamples) { return areaSubSamples; }
 
     @Override
-    public void samplePosition(int k, int rayNum, double[] out) {
+    public void samplePosition(int k, int rayNum, RandomSource rng, Sampler sampler, double[] out) {
         int gridSize = gridX * gridY;
-        int[] xy = Sampling.getGridNumber((rayNum + k) % gridSize, gridX, gridY);
+        int[] xy = sampler.cellForRay((rayNum + k) % gridSize, gridX, gridY);
         int gx = xy[0], gy = xy[1];
 
-        double jx = Rng.uniform(0.0, 1.0);
-        double jy = Rng.uniform(0.0, 1.0);
+        double jx = rng.uniform(0.0, 1.0);
+        double jy = rng.uniform(0.0, 1.0);
 
         out[0] = gridSample[gy][gx][0] + jx * gridDX[0] + jy * gridDY[0];
         out[1] = gridSample[gy][gx][1] + jx * gridDX[1] + jy * gridDY[1];

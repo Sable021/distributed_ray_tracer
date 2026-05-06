@@ -148,7 +148,7 @@ Already covered in Section 6 — same idea, applied to shadow rays toward an are
 ### 10.3 Glossy reflection
 A perfect mirror reflects in exactly one direction; a *glossy* surface (brushed metal, slightly rough plastic) blurs the reflection. Implemented by jittering the reflected direction:
 
-- A small square sample grid is built **perpendicular** to the perfect-reflection direction at distance `glossiness` from the hit point (`Sampling.getSampleVertex`, `Sampling.java:140`).
+- A small square sample grid is built **perpendicular** to the perfect-reflection direction at distance `glossiness` from the hit point (`RayTracer.glossyGridSample`).
 - The new reflected ray aims at a random point inside that grid instead of along the perfect reflection vector (`RayTracer.java:213-227`).
 
 The mirror sphere uses `glossiness = 5.0` (subtly blurred); the stacked spheres use lower values (`Scene.java:96-126`).
@@ -164,15 +164,15 @@ Objects on the focal plane converge to a single colour from every lens position 
 
 ## 11. Stratified sampling
 
-Naïve random sampling clumps points and leaves gaps. *Stratified* sampling divides the domain into a grid and takes one jittered sample per cell, guaranteeing coverage. The technique is used in three places, all built on top of `Sampling.getGridNumber` (`Sampling.java:180`):
+Naïve random sampling clumps points and leaves gaps. *Stratified* sampling divides the domain into a grid and takes one jittered sample per cell, guaranteeing coverage. The technique is used in three places, all built on top of `render/StratifiedSampler.cellForRay`:
 
 - Supersampling: one jittered sub-pixel per grid cell (`Renderer.java:150-156`).
-- Glossy reflection: one jittered direction per cell on the reflection sample grid (`Sampling.java:140`).
-- Soft shadows: one jittered point per cell on the area light grid (`RayTracer.java:340-348`).
+- Glossy reflection: one jittered direction per cell on the reflection sample grid (`RayTracer.glossyGridSample`).
+- Soft shadows: one jittered point per cell on the area light grid (`AreaLight.samplePosition`).
 
-The `(traceNum * 7) % gridSize` index permutation (`Sampling.java:182`) decorrelates adjacent ray samples — a magic-number scrambler preserved verbatim from the C++ original.
+The `(rayNum * 7) % gridSize` index permutation (`render/StratifiedSampler`) decorrelates adjacent ray samples — a magic-number scrambler preserved verbatim from the C++ original.
 
-The RNG (`Rng.java`) is a `SplittableRandom` reseeded deterministically per scanline (`Renderer.rowSeed`, `Renderer.java:282`) so renders are reproducible despite running in parallel across threads.
+The RNG (`render/ThreadLocalRandomSource`) is a `SplittableRandom` reseeded deterministically per scanline (`Renderer.rowSeed`) so renders are reproducible despite running in parallel across threads.
 
 ## 12. Procedural textures
 

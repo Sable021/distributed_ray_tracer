@@ -1,5 +1,9 @@
 package com.raytracer.shading;
 
+import com.raytracer.render.RandomSource;
+import com.raytracer.render.Sampler;
+import com.raytracer.render.StratifiedSampler;
+import com.raytracer.render.ThreadLocalRandomSource;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -42,7 +46,8 @@ class PointLightTest {
                 new double[]{1, 1, 1});
         double[] out = new double[3];
 
-        pl.samplePosition(0, 42, out);
+        // PointLight ignores rng/sampler; pass null to verify it never touches them.
+        pl.samplePosition(0, 42, null, null, out);
 
         assertArrayEquals(pos, out, 0.0);
     }
@@ -58,8 +63,10 @@ class PointLightTest {
         diff[0] = 999;
         spec[0] = 999;
 
+        RandomSource rng = new ThreadLocalRandomSource();
+        Sampler sampler = new StratifiedSampler();
         double[] out = new double[3];
-        pl.samplePosition(0, 0, out);
+        pl.samplePosition(0, 0, rng, sampler, out);
         assertEquals(1, out[0]);
         assertEquals(0.4, pl.diffuseEmission()[0]);
         assertEquals(0.7, pl.specularEmission()[0]);

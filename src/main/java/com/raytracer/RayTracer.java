@@ -1,6 +1,9 @@
 package com.raytracer;
 
 import com.raytracer.geom.Plane;
+import com.raytracer.render.Accelerator;
+import com.raytracer.render.RandomSource;
+import com.raytracer.render.Sampler;
 import com.raytracer.shading.Light;
 import com.raytracer.shading.Material;
 
@@ -25,6 +28,9 @@ public final class RayTracer {
     private final int maxDepth;
     private final int gridX, gridY;   // area-light stratification grid (matches supersample grid)
     private final RenderConfig config;
+    private final Accelerator accelerator;
+    private final RandomSource rng;
+    private final Sampler sampler;
 
     // Ray counters — incremented from every render thread, snapshot via getRayCounts()
     private final AtomicLong primaryRays  = new AtomicLong();
@@ -47,54 +53,30 @@ public final class RayTracer {
     }
 
     /**
-     * @param scene    pre-initialised scene to render
-     * @param maxDepth maximum recursion depth for reflected/refracted rays
-     * @param gridX    supersample/area-light stratification grid width
-     * @param gridY    supersample/area-light stratification grid height
-     * @param config   algorithm constants (ambient level, shadow samples, etc.)
+     * @param scene       pre-initialised scene to render
+     * @param maxDepth    maximum recursion depth for reflected/refracted rays
+     * @param gridX       supersample/area-light stratification grid width
+     * @param gridY       supersample/area-light stratification grid height
+     * @param config      algorithm constants (ambient level, shadow samples, etc.)
+     * @param accelerator scene query backend (already {@link Accelerator#build} bound to {@code scene})
+     * @param rng         random source shared with the {@link Renderer} so per-row reseeding remains deterministic
+     * @param sampler     stratification policy for glossy + area-light grids
      */
-    public RayTracer(Scene scene, int maxDepth, int gridX, int gridY, RenderConfig config) {
+    public RayTracer(Scene scene, int maxDepth, int gridX, int gridY, RenderConfig config,
+                     Accelerator accelerator, RandomSource rng, Sampler sampler) {
         this.scene = scene;
         this.maxDepth = maxDepth;
         this.gridX = gridX;
         this.gridY = gridY;
         this.config = config;
+        this.accelerator = accelerator;
+        this.rng = rng;
+        this.sampler = sampler;
     }
 
     // -------------------------------------------------------------------------
     // Intersection dispatch
     // -------------------------------------------------------------------------
-
-    /**
-     * Find the nearest object hit by {@code ray}, writing the intersection point into
-     * {@code outIntersect}. Returns the object index, or -1 if the ray misses everything.
-     *
-     * <p>{@code depth == 1} (primary rays from the camera) skips objects whose
-     * {@link SceneObject#skipPrimaryRays} flag is set so the front-facing area light
-     * doesn't eclipse the scene; secondary rays still see it.
-     */
-    public int intersectScene(Ray ray, double[] outIntersect, int depth) {
-        int objectIndex = -1;
-        double nearestT = Double.POSITIVE_INFINITY;
-        double[] cand = new double[3];
-
-        for (int i = 0; i < scene.numActive; i++) {
-            SceneObject obj = scene.objects[i];
-            if (obj.primitive == null) continue;
-
-            // Primary rays: skip objects flagged to avoid eclipsing the scene
-            if (depth == 1 && obj.skipPrimaryRays) continue;
-
-            double t = obj.primitive.intersect(ray);
-            if (t > 0.0 && t < nearestT) {
-                VecMath.pointOnLine(cand, ray.point, ray.direct, t);
-                VecMath.copy(cand, outIntersect);
-                objectIndex = i;
-                nearestT = t;
-            }
-        }
-        return objectIndex;
-    }
 
     /** Test {@code ray} against a single scene object by index. -1.0 on miss. */
     public double intersectObject(Ray ray, int index) {
@@ -112,7 +94,7 @@ public final class RayTracer {
      *
      * <p>Algorithm at a glance:
      * <ol>
-     *   <li>Find the nearest hit object via {@link #intersectScene}.</li>
+     *   <li>Find the nearest hit object via the injected {@link Accelerator}.</li>
      *   <li>If it's a light, return white. If it misses, return black.</li>
      *   <li>Compute the local Phong shading via {@link #shadeObject}.</li>
      *   <li>If the surface is refractive and depth allows, recurse along the
@@ -140,7 +122,7 @@ public final class RayTracer {
         }
 
         double[] intersect = new double[3];
-        int idx = intersectScene(ray, intersect, depth);
+        int idx = accelerator.nearest(ray, depth, intersect);
 
         if (idx == -1) {
             VecMath.set(outColour, 0, 0, 0);
@@ -203,7 +185,7 @@ public final class RayTracer {
                 double[] gridMidpt = new double[3];
                 VecMath.pointOnLine(gridMidpt, intersect, reflDir, mat.glossiness());
                 double[] sampleVertex = new double[3];
-                Sampling.getSampleVertex(sampleVertex, gridX, gridY, reflDir, gridMidpt, rayNum);
+                glossyGridSample(sampleVertex, gridX, gridY, reflDir, gridMidpt, rayNum);
 
                 double[] sampleRefl = new double[3];
                 VecMath.direction(sampleRefl, intersect, sampleVertex);
@@ -257,7 +239,7 @@ public final class RayTracer {
             double[] sampleColour = new double[3];
 
             for (int k = 0; k < n; k++) {
-                light.samplePosition(k, rayNum, samplePos);
+                light.samplePosition(k, rayNum, rng, sampler, samplePos);
                 VecMath.direction(L, intersect, samplePos);
                 VecMath.normalize(L);
 
@@ -305,5 +287,50 @@ public final class RayTracer {
             }
         }
         return shadow;
+    }
+
+    /** sqrt(0.125) — diagonal offset for the glossy reflection sample grid. */
+    private static final double GLOSSY_DIAG_HALF = Math.sqrt(0.125);
+
+    /**
+     * Compute one jittered sample point on the glossy reflection grid (a square grid
+     * orthogonal to the perfect-reflection direction, centred at {@code midpt}).
+     * Uses the injected {@link Sampler} for the deterministic cell pick and the injected
+     * {@link RandomSource} for sub-cell jitter — both contributing to the per-row hash
+     * stability across runs.
+     */
+    private void glossyGridSample(double[] outVertex, int gsizeX, int gsizeY,
+                                  double[] N, double[] midpt, int traceNum) {
+        double DX = 0.5 / gsizeX;
+        double DY = 0.5 / gsizeY;
+
+        double[] V = {0.5, 0.5, 0.5};
+        double[] dia1 = new double[3];
+        double[] dia2 = new double[3];
+        VecMath.cross(dia1, V, N);
+        VecMath.cross(dia2, dia1, N);
+
+        double[] gridOrigin = new double[3];
+        VecMath.pointOnLine(gridOrigin, midpt, dia1, GLOSSY_DIAG_HALF);
+
+        double[] gridXAxis = new double[3];
+        VecMath.direction(gridXAxis, dia1, dia2);
+        VecMath.normalize(gridXAxis);
+
+        double[] gridYAxis = new double[3];
+        VecMath.cross(gridYAxis, gridXAxis, N);
+
+        gridXAxis[0] *= DX; gridXAxis[1] *= DX; gridXAxis[2] *= DX;
+        gridYAxis[0] *= DY; gridYAxis[1] *= DY; gridYAxis[2] *= DY;
+
+        double rx = rng.uniform(0.0, 1.0);
+        double ry = rng.uniform(0.0, 1.0);
+
+        int[] xy = sampler.cellForRay(traceNum, gsizeX, gsizeY);
+        int x = xy[0], y = xy[1];
+
+        outVertex[0] = gridOrigin[0] + (x+rx)*gridXAxis[0] + (y+ry)*gridYAxis[0];
+        outVertex[1] = gridOrigin[1] + (x+rx)*gridXAxis[1] + (y+ry)*gridYAxis[1];
+        outVertex[2] = gridOrigin[2] + (x+rx)*gridXAxis[2] + (y+ry)*gridYAxis[2];
     }
 }

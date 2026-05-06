@@ -1,6 +1,8 @@
 package com.raytracer.shading;
 
 import com.raytracer.VecMath;
+import com.raytracer.render.RandomSource;
+import com.raytracer.render.Sampler;
 
 /**
  * Single-position light source. Casts exactly one shadow ray per shaded sample.
@@ -28,7 +30,7 @@ public final class PointLight implements Light {
     @Override public int      sampleCount(int areaSubSamples) { return 1; }
 
     @Override
-    public void samplePosition(int k, int rayNum, double[] out) {
+    public void samplePosition(int k, int rayNum, RandomSource rng, Sampler sampler, double[] out) {
         VecMath.copy(position, out);
     }
 
