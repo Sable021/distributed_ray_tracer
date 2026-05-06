@@ -1,5 +1,8 @@
 package com.raytracer;
 
+import com.raytracer.io.ImageWriters;
+import com.raytracer.scene.SceneFormat;
+import com.raytracer.scene.SceneFormats;
 import javafx.application.Application;
 
 import java.nio.file.Path;
@@ -47,23 +50,17 @@ public class Main {
         System.out.printf("Config: %dx%d mode=%s grid=%dx%d maxDepth=%d%n",
                 args.width, args.height, args.mode, args.gridX, args.gridY, args.maxDepth);
 
-        Scene scene;
-        CameraConfig camera;
-        if (args.scenePath != null) {
-            SceneLoader.Loaded loaded = SceneLoader.load(args.scenePath);
-            scene  = loaded.scene();
-            camera = loaded.camera();
-        } else {
-            scene  = Scene.initialise();
-            camera = CameraConfig.defaults();
-        }
+        SceneFormat.LoadedScene loaded = SceneFormats.load(args.scenePath);
+        Scene        scene  = loaded.scene();
+        CameraConfig camera = loaded.camera();
         RenderConfig renderConfig = RenderConfig.defaults().withShadowSamples(args.shadowSamples).withAcesTonemap(args.tonemap);
         Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY,
                                          args.maxDepth, args.width, args.height, camera, renderConfig);
 
         int[] pixels = renderer.render();
 
-        Path out = ImageOut.write(args.format, args.resolvedOutPath(), pixels, renderer.getHeight(), renderer.getWidth());
+        Path out = ImageWriters.forFormat(args.format)
+                .write(args.resolvedOutPath(), pixels, renderer.getWidth(), renderer.getHeight());
         System.out.println("Wrote " + out.toAbsolutePath());
     }
 

@@ -203,7 +203,7 @@ Indices are stable: the renderer hardcodes `SKIP_AT_DEPTH_1 = 16` to avoid the b
 
 ## 14. From radiance to pixels
 
-The accumulated colour for each pixel is in floating-point `[0, ∞)`. The final step clamps each channel to `[0, 1]`, multiplies by 255, and packs into a 32-bit ARGB integer (`Renderer.packArgb`, `Renderer.java:264`). The pixel buffer is bottom-up (row 0 = bottom of image); the PPM writer (`PpmIO`) and the JavaFX display (`Display`) each handle the row inversion in their own way.
+The accumulated colour for each pixel is in floating-point `[0, ∞)`. The final step clamps each channel to `[0, 1]`, multiplies by 255, and packs into a 32-bit ARGB integer (`Renderer.packArgb`, `Renderer.java:264`). The pixel buffer is bottom-up (row 0 = bottom of image); the PPM writer (`io/PpmImageWriter`) and the JavaFX display (`Display`) each handle the row inversion in their own way.
 
 There is no tone mapping, gamma correction, or HDR pipeline — bright reflections clip to white. This was a deliberate choice to keep the port behaviourally identical to the 2003-era C++ original.
 

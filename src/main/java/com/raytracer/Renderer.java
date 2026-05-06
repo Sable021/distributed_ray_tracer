@@ -17,8 +17,9 @@ import java.util.stream.IntStream;
  * aperture aimed at a focal plane, producing the bokeh effect.
  *
  * <p>The output buffer is row-major ARGB ints in <b>bottom-up</b> order — row 0 is the
- * bottom of the image. {@link PpmIO#write} flips on output, and {@link Display}
- * inverts the row index when uploading to the JavaFX {@code WritableImage}.
+ * bottom of the image. The {@link com.raytracer.io.ImageWriter ImageWriter} flips on
+ * output, and {@link Display} inverts the row index when uploading to the JavaFX
+ * {@code WritableImage}.
  */
 public final class Renderer {
 

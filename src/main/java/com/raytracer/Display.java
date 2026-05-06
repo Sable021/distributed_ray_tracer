@@ -1,5 +1,8 @@
 package com.raytracer;
 
+import com.raytracer.io.ImageWriters;
+import com.raytracer.scene.SceneFormat;
+import com.raytracer.scene.SceneFormats;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -22,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * progressively as it renders.
  *
  * <p>On completion, writes the same image file as the headless path (via
- * {@link ImageOut#write}) and updates the window title with the elapsed time. Render
+ * {@link ImageWriters#forFormat}) and updates the window title with the elapsed time. Render
  * thread is a daemon so closing the window kills the JVM cleanly even mid-render.
  */
 public class Display extends Application {
@@ -67,14 +70,9 @@ public class Display extends Application {
             Scene scene;
             CameraConfig camera;
             try {
-                if (args.scenePath != null) {
-                    SceneLoader.Loaded loaded = SceneLoader.load(args.scenePath);
-                    scene  = loaded.scene();
-                    camera = loaded.camera();
-                } else {
-                    scene  = Scene.initialise();
-                    camera = CameraConfig.defaults();
-                }
+                SceneFormat.LoadedScene loaded = SceneFormats.load(args.scenePath);
+                scene  = loaded.scene();
+                camera = loaded.camera();
             } catch (java.io.IOException e) {
                 e.printStackTrace();
                 Platform.runLater(() -> stage.setTitle("Ray Tracer — failed to load scene: " + e.getMessage()));
@@ -106,7 +104,8 @@ public class Display extends Application {
             int[] pixels = renderer.render();
 
             try {
-                Path out = ImageOut.write(args.format, args.resolvedOutPath(), pixels, renderer.getHeight(), renderer.getWidth());
+                Path out = ImageWriters.forFormat(args.format)
+                        .write(args.resolvedOutPath(), pixels, renderer.getWidth(), renderer.getHeight());
                 long elapsed = (System.currentTimeMillis() - startMs) / 1000;
                 System.out.println("Wrote " + out.toAbsolutePath());
                 Platform.runLater(() -> stage.setTitle(

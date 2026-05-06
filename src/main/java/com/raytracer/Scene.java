@@ -40,7 +40,7 @@ public final class Scene {
     /** All emitters in the scene; both point and area lights. Iteration order is shading order. */
     public final List<Light> lights;
 
-    Scene(SceneObject[] objects, int numActive, List<Light> lights) {
+    public Scene(SceneObject[] objects, int numActive, List<Light> lights) {
         this.objects   = objects;
         this.numActive = numActive;
         this.lights    = lights;
@@ -164,15 +164,5 @@ public final class Scene {
     /** Compute the surface colour at the intersection point by sampling the object's material albedo. */
     public void getObjectColour(int idx, double[] intersect, double[] outColour) {
         objects[idx].material.albedo().sample(intersect, outColour);
-    }
-
-    /**
-     * Load a scene from a JSON file. The camera configuration is returned via
-     * {@link SceneLoader.Loaded#camera()}; use {@link CameraConfig#defaults()} if absent.
-     *
-     * @throws java.io.IOException if the file cannot be read or parsed
-     */
-    public static SceneLoader.Loaded load(java.nio.file.Path file) throws java.io.IOException {
-        return SceneLoader.load(file);
     }
 }

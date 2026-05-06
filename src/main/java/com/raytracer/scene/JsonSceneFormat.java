@@ -1,6 +1,12 @@
-package com.raytracer;
+package com.raytracer.scene;
 
-import com.google.gson.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.raytracer.CameraConfig;
+import com.raytracer.Scene;
+import com.raytracer.SceneObject;
+import com.raytracer.VecMath;
 import com.raytracer.geom.BoundedQuad;
 import com.raytracer.geom.Cylinder;
 import com.raytracer.geom.Plane;
@@ -15,17 +21,15 @@ import com.raytracer.shading.SolidColorTexture;
 import com.raytracer.shading.StripesTexture;
 import com.raytracer.shading.Texture;
 
-import java.io.*;
-import java.nio.file.*;
+import java.io.IOException;
+import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Loads a scene and camera configuration from a JSON file.
- *
- * <p>Entry point is {@link #load(Path)}, which returns a {@link Loaded} record containing
- * both the populated {@link Scene} and the resolved {@link CameraConfig}. Any camera field
- * omitted from the JSON falls back to {@link CameraConfig#defaults()}.
+ * GSON-backed loader for JSON scene files. Recognised by {@code .json} extension.
  *
  * <h3>JSON format</h3>
  * <pre>{@code
@@ -52,25 +56,20 @@ import java.util.List;
  * {@code skipPrimaryRays}) are all optional and default to 0 / false / null when absent.
  * {@code specular_t} is accepted for backward compatibility but currently unused.
  */
-public final class SceneLoader {
+public final class JsonSceneFormat implements SceneFormat {
 
-    private SceneLoader() {}
+    @Override
+    public boolean accepts(Path path) {
+        return path != null && path.getFileName().toString().toLowerCase().endsWith(".json");
+    }
 
-    /** Result of {@link #load}: a fully-populated scene paired with its camera config. */
-    public record Loaded(Scene scene, CameraConfig camera) {}
-
-    /**
-     * Parse {@code file} and return the scene + camera. Throws {@link IOException} on
-     * read failure and {@link IllegalArgumentException} for malformed JSON content.
-     */
-    public static Loaded load(Path file) throws IOException {
+    @Override
+    public LoadedScene load(Path file) throws IOException {
         JsonObject root;
         try (Reader r = Files.newBufferedReader(file)) {
             root = JsonParser.parseReader(r).getAsJsonObject();
         }
-        CameraConfig camera = parseCamera(root);
-        Scene        scene  = parseScene(root);
-        return new Loaded(scene, camera);
+        return new LoadedScene(parseScene(root), parseCamera(root));
     }
 
     // -------------------------------------------------------------------------

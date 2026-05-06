@@ -207,16 +207,16 @@ src/main/java/com/raytracer/
   Renderer.java      pixel loop (supersampled and DoF modes)
   RayTracer.java     recursive ray_trace(); tracks per-type ray counts
   Scene.java         built-in scene geometry and materials
-  SceneLoader.java   Gson-based JSON scene parser
   CameraConfig.java  camera and screen-plane parameters (record)
   RenderConfig.java  algorithm constants — ambient, shadow samples, etc. (record)
   SceneObject.java   primitive + Material wrapper
   Intersect.java     refraction, reflection, total internal reflection helpers
   geom/              sealed Primitive hierarchy: Sphere, Plane, Triangle, Cylinder, BoundedQuad
   shading/           Material, BRDF (Phong), Light (Point/Area), Texture (Solid/Checker/Stripes/PerlinNoise)
+  io/                ImageWriter dispatch: PpmImageWriter (P6), ImageIoImageWriter (PNG/BMP)
+  scene/             SceneFormat dispatch: HardcodedSceneFormat (built-in), JsonSceneFormat
   Sampling.java      stratified sampler for glossy reflections (area-light grid lives on AreaLight)
   VecMath.java       vector math utilities
-  PpmIO.java         P6 PPM writer
   Rng.java           deterministic RNG (SplittableRandom, fixed seed)
   Args.java          CLI argument parser
 
