@@ -2,6 +2,7 @@ package com.raytracer;
 
 import com.raytracer.geom.Plane;
 import com.raytracer.render.Accelerator;
+import com.raytracer.render.PathIntegrator;
 import com.raytracer.render.RandomSource;
 import com.raytracer.render.Sampler;
 import com.raytracer.shading.Light;
@@ -13,16 +14,16 @@ import java.util.concurrent.atomic.AtomicLong;
  * Recursive Phong shader with reflection, refraction, total-internal-reflection, glossy
  * reflection, and area-light soft shadows.
  *
- * <p>Public entry point is {@link #rayTrace}, which is invoked once per primary ray per
- * pixel sample by {@link Renderer}. {@code rayTrace} dispatches to {@link #intersectScene}
- * to find the nearest hit, then to {@link #shadeObject} (Phong) plus recursive
- * {@code rayTrace} calls along reflected/refracted directions until {@code maxDepth} is
- * reached.
+ * <p>Public entry point is {@link #trace}, which is invoked once per primary ray per
+ * pixel sample by {@link Renderer} via the {@link PathIntegrator} interface. {@code trace}
+ * delegates intersection to the injected {@link Accelerator}, runs {@link #shadeObject}
+ * (Phong) for the local term, then recurses along reflected/refracted directions until
+ * {@code maxDepth} is reached.
  *
  * <p>One instance per render; immutable after construction (scene and configuration are
  * fixed).
  */
-public final class RayTracer {
+public final class RayTracer implements PathIntegrator {
 
     private final Scene scene;
     private final int maxDepth;
@@ -112,8 +113,9 @@ public final class RayTracer {
      * @param rayNum    sample index used to deterministically pick a stratified
      *                  area-light/glossy sub-cell
      */
-    public void rayTrace(Ray ray, int depth, double rindex,
-                         double[] outColour, boolean inside, int rayNum) {
+    @Override
+    public void trace(Ray ray, int depth, double rindex,
+                      double[] outColour, boolean inside, int rayNum) {
         if (depth == 1) primaryRays.incrementAndGet();
 
         if (depth > maxDepth) {
@@ -160,13 +162,13 @@ public final class RayTracer {
             if (refracted) {
                 Ray refractRay = Ray.make(intersect, refrDir);
                 refractRays.incrementAndGet();
-                rayTrace(refractRay, depth + 1, objRIndex, refractColour, !inside, rayNum);
+                trace(refractRay, depth + 1, objRIndex, refractColour, !inside, rayNum);
             } else {
                 // Total internal reflection — bounce back inside the object
                 Intersect.reflection(ray.direct, N, refrDir);
                 Ray refractRay = Ray.make(intersect, refrDir);
                 refractRays.incrementAndGet();
-                rayTrace(refractRay, depth + 1, rindex, refractColour, !inside, rayNum);
+                trace(refractRay, depth + 1, rindex, refractColour, !inside, rayNum);
             }
         }
 
@@ -194,7 +196,7 @@ public final class RayTracer {
                 reflectRay = Ray.make(intersect, sampleRefl);
             }
             reflectRays.incrementAndGet();
-            rayTrace(reflectRay, depth + 1, rindex, reflectColour, inside, rayNum);
+            trace(reflectRay, depth + 1, rindex, reflectColour, inside, rayNum);
         }
 
         outColour[0] = localColour[0] + mat.reflectivity() * reflectColour[0] + mat.transmittance() * refractColour[0];

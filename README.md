@@ -204,8 +204,8 @@ Output files are excluded from git by `.gitignore`. The C++ reference render at 
 src/main/java/com/raytracer/
   Main.java          entry point; routes to JavaFX or headless
   Display.java       JavaFX window with progressive scanline upload and ray-count overlay
-  Renderer.java      pixel loop (supersampled and DoF modes)
-  RayTracer.java     recursive ray_trace(); tracks per-type ray counts
+  Renderer.java      single parallel row loop dispatching through a RenderStrategy
+  RayTracer.java     PathIntegrator: recursive trace(); tracks per-type ray counts
   Scene.java         built-in scene geometry and materials
   CameraConfig.java  camera and screen-plane parameters (record)
   RenderConfig.java  algorithm constants — ambient, shadow samples, etc. (record)
@@ -216,7 +216,8 @@ src/main/java/com/raytracer/
   io/                ImageWriter dispatch: PpmImageWriter (P6), ImageIoImageWriter (PNG/BMP)
   scene/             SceneFormat dispatch: HardcodedSceneFormat (built-in), JsonSceneFormat
   render/            Accelerator (linear scan), RandomSource (ThreadLocal SplittableRandom),
-                     Sampler (stratified *7 scrambler)
+                     Sampler (stratified *7 scrambler), PathIntegrator,
+                     RenderStrategy (PinholeStrategy / DepthOfFieldStrategy)
   VecMath.java       vector math utilities
   Args.java          CLI argument parser
 

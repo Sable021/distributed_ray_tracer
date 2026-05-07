@@ -1,9 +1,11 @@
 package com.raytracer;
 
-import com.raytracer.geom.Plane;
 import com.raytracer.render.Accelerator;
+import com.raytracer.render.DepthOfFieldStrategy;
 import com.raytracer.render.LinearAccelerator;
+import com.raytracer.render.PinholeStrategy;
 import com.raytracer.render.RandomSource;
+import com.raytracer.render.RenderStrategy;
 import com.raytracer.render.Sampler;
 import com.raytracer.render.StratifiedSampler;
 import com.raytracer.render.ThreadLocalRandomSource;
@@ -15,12 +17,13 @@ import java.util.stream.IntStream;
 
 /**
  * Top-level pixel loop, owning the camera + screen-plane geometry and dispatching to
- * the appropriate render mode.
+ * the configured {@link RenderStrategy} once per pixel.
  *
- * <p>For each pixel, fires {@code gridX * gridY} jittered primary rays through
- * {@link RayTracer#rayTrace} and averages the resulting colours (supersampling). The
- * depth-of-field mode additionally jitters the ray origin across a small lens
- * aperture aimed at a focal plane, producing the bokeh effect.
+ * <p>The strategy fires {@code gridX * gridY} jittered primary rays through
+ * {@link RayTracer#trace} and averages the resulting colours. The DoF strategy
+ * additionally jitters the ray origin across a small lens aperture aimed at a focal
+ * plane, producing the bokeh effect. Beyond that, both strategies look identical to the
+ * row-loop scaffolding here.
  *
  * <p>The output buffer is row-major ARGB ints in <b>bottom-up</b> order — row 0 is the
  * bottom of the image. The {@link com.raytracer.io.ImageWriter ImageWriter} flips on
@@ -59,18 +62,13 @@ public final class Renderer {
     /** Default image height in pixels. Used when no {@code --height=N} flag is supplied. */
     public static final int DEFAULT_HEIGHT = 1080;
 
-    // ---- Camera / screen-plane / DoF (injected via CameraConfig) ----
-    private final double[] eye;
-    private final double scrWxl, scrWxr, scrHyb, scrHyt, scrZ;
-    private final double dofLensWidth, dofLensHeight, dofFocalDist;
+    // ---- Camera / screen-plane (injected via CameraConfig) ----
+    private final double scrWxl, scrWxr, scrHyb, scrHyt;
 
-    private final Scene scene;
     private final RayTracer rayTracer;
-    private final Mode mode;
+    private final RenderStrategy strategy;
     private final int gridX, gridY;
     private final int width, height;
-    private final int maxDepth;
-    private final RenderConfig renderConfig;
     private final boolean acesTonemap;
     private final RandomSource rng;
     private RowListener rowListener;
@@ -97,24 +95,15 @@ public final class Renderer {
      */
     public Renderer(Scene scene, Mode mode, int gridX, int gridY, int maxDepth,
                     int width, int height, CameraConfig camera, RenderConfig renderConfig) {
-        this.scene  = scene;
-        this.mode   = mode;
         this.gridX  = gridX;
         this.gridY  = gridY;
-        this.maxDepth = maxDepth;
         this.width  = width;
         this.height = height;
-        this.renderConfig  = renderConfig;
-        this.acesTonemap   = renderConfig.acesTonemap();
-        this.eye          = camera.eye().clone();
-        this.scrWxl       = camera.scrWxl();
-        this.scrWxr       = camera.scrWxr();
-        this.scrHyb       = camera.scrHyb();
-        this.scrHyt       = camera.scrHyt();
-        this.scrZ         = camera.scrZ();
-        this.dofLensWidth = camera.dofLensWidth();
-        this.dofLensHeight= camera.dofLensHeight();
-        this.dofFocalDist = camera.dofFocalDist();
+        this.acesTonemap = renderConfig.acesTonemap();
+        this.scrWxl = camera.scrWxl();
+        this.scrWxr = camera.scrWxr();
+        this.scrHyb = camera.scrHyb();
+        this.scrHyt = camera.scrHyt();
 
         Accelerator accelerator = new LinearAccelerator();
         accelerator.build(scene);
@@ -123,8 +112,18 @@ public final class Renderer {
         this.rayTracer = new RayTracer(scene, maxDepth, gridX, gridY, renderConfig,
                                        accelerator, this.rng, sampler);
 
+        this.strategy = switch (mode) {
+            case SUPERSAMPLED   -> new PinholeStrategy(camera.eye(), camera.scrZ(),
+                                                       this.rayTracer, this.rng);
+            case DEPTH_OF_FIELD -> new DepthOfFieldStrategy(camera.eye(), camera.scrZ(),
+                                                            camera.dofLensWidth(),
+                                                            camera.dofLensHeight(),
+                                                            camera.dofFocalDist(),
+                                                            this.rayTracer, this.rng);
+        };
+
         // Initialise light grids for area lights (must happen before any rayTrace call)
-        for (Light light : this.scene.lights) {
+        for (Light light : scene.lights) {
             if (light instanceof AreaLight area) {
                 area.buildGrid(gridX, gridY);
             }
@@ -151,135 +150,26 @@ public final class Renderer {
 
     /**
      * Run the render. Synchronous: returns only after every pixel has been shaded.
-     * Dispatches to the appropriate strategy based on the configured {@link Mode}.
+     * Each row is reseeded deterministically and dispatched in parallel through
+     * {@link RenderStrategy#shadePixel}.
      *
      * @return ARGB pixel buffer in bottom-up row order; length {@code width * height}
      */
     public int[] render() {
-        return switch (mode) {
-            case SUPERSAMPLED    -> renderSupersampled();
-            case DEPTH_OF_FIELD  -> renderDepthOfField();
-        };
-    }
-
-    // -------------------------------------------------------------------------
-    // Supersampled render (jittered NxN rays per pixel)
-    // -------------------------------------------------------------------------
-
-    private int[] renderSupersampled() {
         int[] pixels = new int[width * height];
         double scrDX = (scrWxr - scrWxl) / width;
         double scrDY = (scrHyt - scrHyb) / height;
-        int gridSize = gridX * gridY;
 
         Progress prog = new Progress(height);
 
         IntStream.range(0, height).parallel().forEach(i -> {
             rng.reseed(rowSeed(i));
+            double[] rgb = new double[3];
             for (int j = 0; j < width; j++) {
                 double scrX = scrWxl + j * scrDX;
                 double scrY = scrHyb + i * scrDY;
-
-                double[] acc = new double[3];
-
-                for (int k = 0; k < gridY; k++) {
-                    for (int l = 0; l < gridX; l++) {
-                        double[] sub = {
-                            scrX + (scrDX / gridX) * l + rng.uniform(0.0, scrDX / gridX),
-                            scrY + (scrDY / gridY) * k + rng.uniform(0.0, scrDY / gridY),
-                            scrZ
-                        };
-                        double[] dir = VecMath.direction(eye, sub);
-                        VecMath.normalize(dir);
-                        Ray ray = Ray.make(eye, dir);
-
-                        double[] c = new double[3];
-                        rayTracer.rayTrace(ray, 1, 1.0, c, false, k * gridX + l);
-                        acc[0] += c[0]; acc[1] += c[1]; acc[2] += c[2];
-                    }
-                }
-
-                acc[0] /= gridSize;
-                acc[1] /= gridSize;
-                acc[2] /= gridSize;
-
-                pixels[i * width + j] = packArgb(acc);
-            }
-            prog.tick();
-            if (rowListener != null) rowListener.onRowComplete(i, pixels, width);
-        });
-        prog.done();
-        return pixels;
-    }
-
-    // -------------------------------------------------------------------------
-    // Depth of field render (lens-jittered rays toward a focal point)
-    // -------------------------------------------------------------------------
-
-    private int[] renderDepthOfField() {
-        int[] pixels = new int[width * height];
-        double scrDX = (scrWxr - scrWxl) / width;
-        double scrDY = (scrHyt - scrHyb) / height;
-        int gridSize = gridX * gridY;
-
-        double dofDX = dofLensWidth  / gridX;
-        double dofDY = dofLensHeight / gridY;
-
-        // Build a synthetic focal plane at z = scrZ - dofFocalDist (normal (0,0,-1))
-        Plane focalPlane = new Plane(new double[]{0.0, 0.0, -1.0}, dofFocalDist);
-
-        Progress prog = new Progress(height);
-
-        IntStream.range(0, height).parallel().forEach(i -> {
-            rng.reseed(rowSeed(i));
-            for (int j = 0; j < width; j++) {
-                double scrX = scrWxl + j * scrDX;
-                double scrY = scrHyb + i * scrDY;
-
-                double[] pixelPt = { scrX, scrY, scrZ };
-
-                // Primary ray from eye through the pixel to find the focus point on the focal plane
-                double[] dofDir = VecMath.direction(eye, pixelPt);
-                VecMath.normalize(dofDir);
-                Ray dofRay = Ray.make(pixelPt, dofDir);
-
-                double tFocus = focalPlane.intersect(dofRay);
-                if (tFocus <= 0.0) {
-                    // eye ray missed focal plane — skip this pixel
-                    pixels[i * width + j] = 0xFF000000;
-                    continue;
-                }
-
-                double[] focusPt = new double[3];
-                VecMath.pointOnLine(focusPt, dofRay.point, dofRay.direct, tFocus);
-
-                // Lens origin: bottom-left of the square aperture centred on the pixel
-                double lensOriginX = scrX - dofLensWidth  / 2.0;
-                double lensOriginY = scrY - dofLensHeight / 2.0;
-
-                double[] acc = new double[3];
-
-                for (int k = 0; k < gridY; k++) {
-                    for (int l = 0; l < gridX; l++) {
-                        double[] lensPt = {
-                            lensOriginX + dofDX * l + rng.uniform(0.0, dofDX),
-                            lensOriginY + dofDY * k + rng.uniform(0.0, dofDY),
-                            scrZ
-                        };
-                        double[] dir = VecMath.direction(lensPt, focusPt);
-                        VecMath.normalize(dir);
-                        Ray ray = Ray.make(lensPt, dir);
-
-                        double[] c = new double[3];
-                        rayTracer.rayTrace(ray, 1, 1.0, c, false, k * gridX + l);
-                        acc[0] += c[0]; acc[1] += c[1]; acc[2] += c[2];
-                    }
-                }
-
-                acc[0] /= gridSize;
-                acc[1] /= gridSize;
-                acc[2] /= gridSize;
-                pixels[i * width + j] = packArgb(acc);
+                strategy.shadePixel(scrX, scrY, scrDX, scrDY, gridX, gridY, rgb);
+                pixels[i * width + j] = packArgb(rgb);
             }
             prog.tick();
             if (rowListener != null) rowListener.onRowComplete(i, pixels, width);
