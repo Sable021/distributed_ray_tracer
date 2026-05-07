@@ -1,11 +1,10 @@
 package com.raytracer;
 
-import com.raytracer.io.ImageWriters;
+import com.raytracer.io.HeadlessRenderDisplay;
+import com.raytracer.io.RenderDisplay;
 import com.raytracer.scene.SceneFormat;
 import com.raytracer.scene.SceneFormats;
 import javafx.application.Application;
-
-import java.nio.file.Path;
 
 /**
  * Application entry point.
@@ -42,9 +41,9 @@ public class Main {
     }
 
     /**
-     * Initialise the scene, run a synchronous render, and write the output file. Logs
-     * configuration and the absolute output path to stdout. Intended for CI / automation
-     * use where no display is available.
+     * Initialise the scene, build the renderer + a {@link HeadlessRenderDisplay}, and
+     * hand off to {@link Bootstrap#runRender}. Logs the configuration line; the bootstrap
+     * + display together produce the rest of the headless stdout output unchanged.
      */
     private static void runHeadless(Args args) throws Exception {
         System.out.printf("Config: %dx%d mode=%s grid=%dx%d maxDepth=%d%n",
@@ -57,11 +56,8 @@ public class Main {
         Renderer renderer = new Renderer(scene, args.mode, args.gridX, args.gridY,
                                          args.maxDepth, args.width, args.height, camera, renderConfig);
 
-        int[] pixels = renderer.render();
-
-        Path out = ImageWriters.forFormat(args.format)
-                .write(args.resolvedOutPath(), pixels, renderer.getWidth(), renderer.getHeight());
-        System.out.println("Wrote " + out.toAbsolutePath());
+        RenderDisplay display = new HeadlessRenderDisplay();
+        Bootstrap.runRender(renderer, display, args.resolvedOutPath(), args.format);
     }
 
     /** Print the supported CLI flags and a one-line description of each to stdout. */

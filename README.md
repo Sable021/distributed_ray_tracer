@@ -203,7 +203,8 @@ Output files are excluded from git by `.gitignore`. The C++ reference render at 
 ```
 src/main/java/com/raytracer/
   Main.java          entry point; routes to JavaFX or headless
-  Display.java       JavaFX window with progressive scanline upload and ray-count overlay
+  Display.java       JavaFX Application: builds JavaFxRenderDisplay + spawns render daemon
+  Bootstrap.java     composition root: drives Renderer through any RenderDisplay
   Renderer.java      single parallel row loop dispatching through a RenderStrategy
   RayTracer.java     PathIntegrator: recursive trace(); reports ray events to a RenderObserver
   Scene.java         built-in scene geometry and materials
@@ -213,7 +214,8 @@ src/main/java/com/raytracer/
   Intersect.java     refraction, reflection, total internal reflection helpers
   geom/              sealed Primitive hierarchy: Sphere, Plane, Triangle, Cylinder, BoundedQuad
   shading/           Material, BRDF (Phong), Light (Point/Area), Texture (Solid/Checker/Stripes/PerlinNoise)
-  io/                ImageWriter dispatch: PpmImageWriter (P6), ImageIoImageWriter (PNG/BMP)
+  io/                ImageWriter dispatch (PpmImageWriter / ImageIoImageWriter for PNG/BMP),
+                     RenderDisplay (HeadlessRenderDisplay / JavaFxRenderDisplay)
   scene/             SceneFormat dispatch: HardcodedSceneFormat (built-in), JsonSceneFormat
   render/            Accelerator (linear scan), RandomSource (ThreadLocal SplittableRandom),
                      Sampler (stratified *7 scrambler), PathIntegrator,
