@@ -205,7 +205,7 @@ src/main/java/com/raytracer/
   Main.java          entry point; routes to JavaFX or headless
   Display.java       JavaFX window with progressive scanline upload and ray-count overlay
   Renderer.java      single parallel row loop dispatching through a RenderStrategy
-  RayTracer.java     PathIntegrator: recursive trace(); tracks per-type ray counts
+  RayTracer.java     PathIntegrator: recursive trace(); reports ray events to a RenderObserver
   Scene.java         built-in scene geometry and materials
   CameraConfig.java  camera and screen-plane parameters (record)
   RenderConfig.java  algorithm constants — ambient, shadow samples, etc. (record)
@@ -217,7 +217,8 @@ src/main/java/com/raytracer/
   scene/             SceneFormat dispatch: HardcodedSceneFormat (built-in), JsonSceneFormat
   render/            Accelerator (linear scan), RandomSource (ThreadLocal SplittableRandom),
                      Sampler (stratified *7 scrambler), PathIntegrator,
-                     RenderStrategy (PinholeStrategy / DepthOfFieldStrategy)
+                     RenderStrategy (PinholeStrategy / DepthOfFieldStrategy),
+                     RenderObserver (RayCounter / ProgressReporter / CompositeObserver) + RayCounts
   VecMath.java       vector math utilities
   Args.java          CLI argument parser
 

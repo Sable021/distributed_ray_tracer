@@ -4,11 +4,10 @@ import com.raytracer.geom.Plane;
 import com.raytracer.render.Accelerator;
 import com.raytracer.render.PathIntegrator;
 import com.raytracer.render.RandomSource;
+import com.raytracer.render.RenderObserver;
 import com.raytracer.render.Sampler;
 import com.raytracer.shading.Light;
 import com.raytracer.shading.Material;
-
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Recursive Phong shader with reflection, refraction, total-internal-reflection, glossy
@@ -32,26 +31,7 @@ public final class RayTracer implements PathIntegrator {
     private final Accelerator accelerator;
     private final RandomSource rng;
     private final Sampler sampler;
-
-    // Ray counters — incremented from every render thread, snapshot via getRayCounts()
-    private final AtomicLong primaryRays  = new AtomicLong();
-    private final AtomicLong shadowRays   = new AtomicLong();
-    private final AtomicLong reflectRays  = new AtomicLong();
-    private final AtomicLong refractRays  = new AtomicLong();
-
-    /**
-     * Snapshot of rays cast so far, broken down by type. Counts are monotonic — they only
-     * grow during a render and are not reset between renders on the same {@link RayTracer}.
-     */
-    public record RayCounts(long primary, long shadow, long reflect, long refract) {
-        public long total() { return primary + shadow + reflect + refract; }
-    }
-
-    /** Thread-safe snapshot of the current ray counts. */
-    public RayCounts getRayCounts() {
-        return new RayCounts(primaryRays.get(), shadowRays.get(),
-                             reflectRays.get(), refractRays.get());
-    }
+    private final RenderObserver observer;
 
     /**
      * @param scene       pre-initialised scene to render
@@ -62,9 +42,11 @@ public final class RayTracer implements PathIntegrator {
      * @param accelerator scene query backend (already {@link Accelerator#build} bound to {@code scene})
      * @param rng         random source shared with the {@link Renderer} so per-row reseeding remains deterministic
      * @param sampler     stratification policy for glossy + area-light grids
+     * @param observer    cross-cutting sink for ray events; pass a no-op observer in tests
      */
     public RayTracer(Scene scene, int maxDepth, int gridX, int gridY, RenderConfig config,
-                     Accelerator accelerator, RandomSource rng, Sampler sampler) {
+                     Accelerator accelerator, RandomSource rng, Sampler sampler,
+                     RenderObserver observer) {
         this.scene = scene;
         this.maxDepth = maxDepth;
         this.gridX = gridX;
@@ -73,6 +55,7 @@ public final class RayTracer implements PathIntegrator {
         this.accelerator = accelerator;
         this.rng = rng;
         this.sampler = sampler;
+        this.observer = observer;
     }
 
     // -------------------------------------------------------------------------
@@ -116,7 +99,7 @@ public final class RayTracer implements PathIntegrator {
     @Override
     public void trace(Ray ray, int depth, double rindex,
                       double[] outColour, boolean inside, int rayNum) {
-        if (depth == 1) primaryRays.incrementAndGet();
+        if (depth == 1) observer.onPrimary();
 
         if (depth > maxDepth) {
             VecMath.set(outColour, 0, 0, 0);
@@ -161,13 +144,13 @@ public final class RayTracer implements PathIntegrator {
 
             if (refracted) {
                 Ray refractRay = Ray.make(intersect, refrDir);
-                refractRays.incrementAndGet();
+                observer.onRefract();
                 trace(refractRay, depth + 1, objRIndex, refractColour, !inside, rayNum);
             } else {
                 // Total internal reflection — bounce back inside the object
                 Intersect.reflection(ray.direct, N, refrDir);
                 Ray refractRay = Ray.make(intersect, refrDir);
-                refractRays.incrementAndGet();
+                observer.onRefract();
                 trace(refractRay, depth + 1, rindex, refractColour, !inside, rayNum);
             }
         }
@@ -195,7 +178,7 @@ public final class RayTracer implements PathIntegrator {
 
                 reflectRay = Ray.make(intersect, sampleRefl);
             }
-            reflectRays.incrementAndGet();
+            observer.onReflect();
             trace(reflectRay, depth + 1, rindex, reflectColour, inside, rayNum);
         }
 
@@ -274,7 +257,7 @@ public final class RayTracer implements PathIntegrator {
      */
     private double shadowVisibility(double[] intersect, double[] L, int scanLimit) {
         Ray shadowRay = Ray.make(intersect, L);
-        shadowRays.incrementAndGet();
+        observer.onShadow();
 
         double shadow = 1.0;
         for (int j = 0; j < scanLimit; j++) {

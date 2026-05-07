@@ -1,6 +1,7 @@
 package com.raytracer;
 
 import com.raytracer.io.ImageWriters;
+import com.raytracer.render.RayCounts;
 import com.raytracer.scene.SceneFormat;
 import com.raytracer.scene.SceneFormats;
 import javafx.application.Application;
@@ -88,7 +89,7 @@ public class Display extends Application {
                 int[] rowCopy = new int[width];
                 System.arraycopy(pixels, row * width, rowCopy, 0, width);
                 int rowsDone = rowsCompleted.incrementAndGet();
-                RayTracer.RayCounts counts = renderer.getRayCounts();
+                RayCounts counts = renderer.getRayCounts();
                 Platform.runLater(() -> {
                     writer.setPixels(0, dstRow, width, 1,
                             PixelFormat.getIntArgbInstance(), rowCopy, 0, width);
@@ -119,7 +120,7 @@ public class Display extends Application {
     }
 
     /** Format ray counts as a single-line label, abbreviating large numbers (e.g. 1.2M, 3.4K). */
-    private static String formatRayCounts(RayTracer.RayCounts c) {
+    private static String formatRayCounts(RayCounts c) {
         return String.format("primary %s | shadow %s | reflect %s | refract %s | total %s",
                 abbreviate(c.primary()),
                 abbreviate(c.shadow()),

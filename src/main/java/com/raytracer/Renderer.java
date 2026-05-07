@@ -1,10 +1,15 @@
 package com.raytracer;
 
 import com.raytracer.render.Accelerator;
+import com.raytracer.render.CompositeObserver;
 import com.raytracer.render.DepthOfFieldStrategy;
 import com.raytracer.render.LinearAccelerator;
 import com.raytracer.render.PinholeStrategy;
+import com.raytracer.render.ProgressReporter;
 import com.raytracer.render.RandomSource;
+import com.raytracer.render.RayCounter;
+import com.raytracer.render.RayCounts;
+import com.raytracer.render.RenderObserver;
 import com.raytracer.render.RenderStrategy;
 import com.raytracer.render.Sampler;
 import com.raytracer.render.StratifiedSampler;
@@ -12,7 +17,6 @@ import com.raytracer.render.ThreadLocalRandomSource;
 import com.raytracer.shading.AreaLight;
 import com.raytracer.shading.Light;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 /**
@@ -65,12 +69,13 @@ public final class Renderer {
     // ---- Camera / screen-plane (injected via CameraConfig) ----
     private final double scrWxl, scrWxr, scrHyb, scrHyt;
 
-    private final RayTracer rayTracer;
     private final RenderStrategy strategy;
     private final int gridX, gridY;
     private final int width, height;
     private final boolean acesTonemap;
     private final RandomSource rng;
+    private final RayCounter rayCounter;
+    private final RenderObserver observer;
     private RowListener rowListener;
 
     /**
@@ -109,17 +114,21 @@ public final class Renderer {
         accelerator.build(scene);
         this.rng = new ThreadLocalRandomSource();
         Sampler sampler = new StratifiedSampler();
-        this.rayTracer = new RayTracer(scene, maxDepth, gridX, gridY, renderConfig,
-                                       accelerator, this.rng, sampler);
+
+        this.rayCounter = new RayCounter();
+        this.observer   = new CompositeObserver(rayCounter, new ProgressReporter());
+
+        RayTracer rayTracer = new RayTracer(scene, maxDepth, gridX, gridY, renderConfig,
+                                            accelerator, this.rng, sampler, this.observer);
 
         this.strategy = switch (mode) {
             case SUPERSAMPLED   -> new PinholeStrategy(camera.eye(), camera.scrZ(),
-                                                       this.rayTracer, this.rng);
+                                                       rayTracer, this.rng);
             case DEPTH_OF_FIELD -> new DepthOfFieldStrategy(camera.eye(), camera.scrZ(),
                                                             camera.dofLensWidth(),
                                                             camera.dofLensHeight(),
                                                             camera.dofFocalDist(),
-                                                            this.rayTracer, this.rng);
+                                                            rayTracer, this.rng);
         };
 
         // Initialise light grids for area lights (must happen before any rayTrace call)
@@ -146,7 +155,7 @@ public final class Renderer {
     /** @return image height in pixels. */
     public int getHeight() { return height; }
     /** @return live snapshot of rays cast so far, broken down by type. */
-    public RayTracer.RayCounts getRayCounts() { return rayTracer.getRayCounts(); }
+    public RayCounts getRayCounts() { return rayCounter.snapshot(); }
 
     /**
      * Run the render. Synchronous: returns only after every pixel has been shaded.
@@ -160,7 +169,7 @@ public final class Renderer {
         double scrDX = (scrWxr - scrWxl) / width;
         double scrDY = (scrHyt - scrHyb) / height;
 
-        Progress prog = new Progress(height);
+        observer.onRenderStart(height);
 
         IntStream.range(0, height).parallel().forEach(i -> {
             rng.reseed(rowSeed(i));
@@ -171,10 +180,10 @@ public final class Renderer {
                 strategy.shadePixel(scrX, scrY, scrDX, scrDY, gridX, gridY, rgb);
                 pixels[i * width + j] = packArgb(rgb);
             }
-            prog.tick();
+            observer.onRowDone(i);
             if (rowListener != null) rowListener.onRowComplete(i, pixels, width);
         });
-        prog.done();
+        observer.onRenderDone();
         return pixels;
     }
 
@@ -208,43 +217,5 @@ public final class Renderer {
      */
     private static long rowSeed(int row) {
         return 0x9E3779B97F4A7C15L * (row + 1L);
-    }
-
-    /**
-     * Thread-safe progress reporter. {@link #tick} is invoked once per completed row from
-     * any thread; the 25/50/75% milestones fire exactly once each, on whichever thread
-     * crosses the threshold first.
-     */
-    private static final class Progress {
-        private final int totalRows;
-        private final long startMs = System.currentTimeMillis();
-        private final AtomicInteger completed = new AtomicInteger(0);
-        private final AtomicInteger stage = new AtomicInteger(0);
-
-        Progress(int totalRows) {
-            this.totalRows = totalRows;
-            System.out.println("Rendering Scene... Please be Patient");
-        }
-
-        void tick() {
-            int done = completed.incrementAndGet();
-            int s = stage.get();
-            int threshold = switch (s) {
-                case 0 -> totalRows / 4;
-                case 1 -> totalRows / 2;
-                case 2 -> (3 * totalRows) / 4;
-                default -> Integer.MAX_VALUE;
-            };
-            if (done >= threshold && stage.compareAndSet(s, s + 1)) {
-                long elapsed = (System.currentTimeMillis() - startMs) / 1000;
-                String[] tag = { "25%", "50%", "75%" };
-                System.out.printf("(%s completed) elapsed=%ds%n", tag[s], elapsed);
-            }
-        }
-
-        void done() {
-            long elapsed = (System.currentTimeMillis() - startMs) / 1000;
-            System.out.println("Rendering Done. Total: " + elapsed + "s");
-        }
     }
 }
