@@ -112,6 +112,7 @@ This repo runs on Windows + PowerShell. When chaining commands, use `;` and `if 
 ## Commits
 
 - Commit per logical change with a green test suite **and** matching golden hashes.
+- Every commit must keep the Changeability Index **above 90**. Verify with `./gradlew test jacocoTestReport changeabilityFloor -Pci.floor=90`; if it drops below 90, fix the regression before committing — do not lower the floor.
 - Reference the phase or feature in the subject. Body explains the **why** when non-obvious.
 - Never `--amend` a pushed commit. Never `--no-verify`.
 - Never push without explicit user confirmation.
