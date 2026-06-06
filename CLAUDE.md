@@ -96,6 +96,7 @@ If you are tempted to "clean up" one of these, stop and confirm with the user �
 - `./gradlew test` — full JUnit 5 suite.
 - `./gradlew run --args="--headless --quick"` — fastest sanity check (~2s).
 - `./gradlew verifyImage` — full-resolution four-config golden gate.
+- `./gradlew test jacocoTestReport changeabilityIndex` — ISO 25010 Changeability Index (`[1,100]`); see [docs/changeability-index.md](docs/changeability-index.md).
 
 This repo runs on Windows + PowerShell. When chaining commands, use `;` and `if ($?) { ... }` — `&&` does not exist in Windows PowerShell 5.1. Bash is also available via the Bash tool.
 
