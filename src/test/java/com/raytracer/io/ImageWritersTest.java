@@ -62,4 +62,14 @@ class ImageWritersTest {
         assertEquals(0xFF0000FF & 0xFFFFFF, img.getRGB(0, 0) & 0xFFFFFF, "top-left = bottom-up row 1, col 0 = BLUE");
         assertEquals(0xFFFF0000 & 0xFFFFFF, img.getRGB(0, 1) & 0xFFFFFF, "bottom-left = bottom-up row 0, col 0 = RED");
     }
+
+    /** A format with no registered ImageIO encoder makes {@code ImageIO.write} return false → IOException. */
+    @Test
+    void imageIoWriterThrowsWhenNoEncoderForFormat(@TempDir Path tmp) {
+        ImageWriter w = new ImageIoImageWriter("xyz");   // no JRE encoder for "xyz"
+        Path out = tmp.resolve("test.xyz");
+        IOException ex = assertThrows(IOException.class,
+                () -> w.write(out, new int[]{0xFF000000}, 1, 1));
+        assertTrue(ex.getMessage().contains("xyz"));
+    }
 }

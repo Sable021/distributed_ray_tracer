@@ -32,6 +32,31 @@ class TextureTest {
         assertArrayEquals(new double[]{0.4, 0.4, 0.4}, out, 1e-12);
     }
 
+    /**
+     * Negative {@code sin(intersect[0])} drives the {@code tp[0] < 0} else-branch with odd
+     * cells ({@code xyEven == false}), the path the origin test never reaches.
+     */
+    @Test
+    void checkerNegativeAxisOddCells() {
+        Texture t = new CheckerTexture();
+        double[] out = new double[3];
+        t.sample(new double[]{4, 4, 4}, out);
+
+        // sin(4) ≈ -0.7568 → tp[i] < 0, cx=cy=cz=-3 (odd) → xyEven=false, zEven=false → (0.0,0.15,0.3)
+        assertArrayEquals(new double[]{0.0, 0.15, 0.3}, out, 1e-12);
+    }
+
+    /** {@code xEven && yEven} with one axis even and the other odd — the mixed parity combo. */
+    @Test
+    void checkerMixedParityCells() {
+        Texture t = new CheckerTexture();
+        double[] out = new double[3];
+        t.sample(new double[]{1.5, 0.7, 0.0}, out);
+
+        // cx=4 (even), cy=3 (odd) → xyEven=false; tp[0]>=0, zEven (cz=0) → (0.0, 0.15, 0.3)
+        assertArrayEquals(new double[]{0.0, 0.15, 0.3}, out, 1e-12);
+    }
+
     /** Stripes light/dark dispatch is driven by {@code (radius+0.5)%5 < 1}. */
     @Test
     void stripesAtOriginPicksDarkBand() {

@@ -47,6 +47,23 @@ class SphereTest {
     }
 
     @Test
+    void sphereEntirelyBehindRayMisses() {
+        Sphere s = new Sphere(new double[]{0, 0, -5}, 1.0);
+        Ray r = Ray.make(new double[]{0, 0, 0}, new double[]{0, 0, 1});  // pointing away from sphere
+
+        assertEquals(-1.0, s.intersect(r));   // both roots negative → t2 < EPSILON
+    }
+
+    @Test
+    void rayOriginInsideSphereReturnsFarRoot() {
+        Sphere s = new Sphere(new double[]{0, 0, 5}, 1.0);
+        Ray r = Ray.make(new double[]{0, 0, 5}, new double[]{0, 0, 1});  // start at centre
+
+        // Near root is behind (t1 < EPSILON); the far exit root t2 = r*sqrt(2) is returned.
+        assertEquals(Math.sqrt(2), s.intersect(r), 1e-9);
+    }
+
+    @Test
     void componentsAreDefensivelyCopied() {
         double[] centre = {1, 2, 3};
         Sphere s = new Sphere(centre, 1.0);

@@ -51,4 +51,73 @@ class JsonSceneFormatTest {
         JsonSceneFormat fmt = new JsonSceneFormat();
         assertThrows(IllegalArgumentException.class, () -> fmt.load(bogus));
     }
+
+    @Test
+    void cameraDefaultsWhenSectionAbsent(@TempDir Path tmp) throws IOException {
+        Path p = write(tmp, """
+            { "objects": [
+              { "type": "sphere", "centre": [0,0,0], "radius": 1.0, "colour": [1,0,0] }
+            ] }""");
+        SceneFormat.LoadedScene loaded = new JsonSceneFormat().load(p);
+        assertArrayEquals(com.raytracer.CameraConfig.defaults().eye(), loaded.camera().eye(), 0.0);
+    }
+
+    @Test
+    void cameraWithoutEyeKeepsDefaultEyeButOverridesScreenZ(@TempDir Path tmp) throws IOException {
+        Path p = write(tmp, """
+            { "camera": { "screenZ": 5.0 },
+              "objects": [ { "type": "sphere", "centre": [0,0,0], "radius": 1.0 } ] }""");
+        SceneFormat.LoadedScene loaded = new JsonSceneFormat().load(p);
+        assertArrayEquals(com.raytracer.CameraConfig.defaults().eye(), loaded.camera().eye(), 0.0);
+        assertEquals(5.0, loaded.camera().scrZ(), 0.0);
+    }
+
+    @Test
+    void loadsCylinderAndAreaLightWithoutExplicitColours(@TempDir Path tmp) throws IOException {
+        Path p = write(tmp, """
+            { "objects": [
+              { "type": "cylinder", "centre": [0,0,0], "axis": [0,2,0], "radius": 1.0, "height": 4.0 },
+              { "type": "area_light", "normal": [0,-1,0], "dist": 9.99,
+                "corners": [[1,9.99,0.5],[3,9.99,0.5],[3,9.99,2.5],[1,9.99,2.5]] }
+            ] }""");
+        SceneFormat.LoadedScene loaded = new JsonSceneFormat().load(p);
+        assertEquals(2, loaded.scene().numActive);
+        assertEquals(1, loaded.scene().lights.size());   // area_light registered with default white colours
+    }
+
+    @Test
+    void areaLightWithExplicitColoursIsRegistered(@TempDir Path tmp) throws IOException {
+        Path p = write(tmp, """
+            { "objects": [
+              { "type": "area_light", "normal": [0,-1,0], "dist": 9.99,
+                "corners": [[1,9.99,0.5],[3,9.99,0.5],[3,9.99,2.5],[1,9.99,2.5]],
+                "diffuseColour": [0.9,0.8,0.7], "specularColour": [0.5,0.5,0.5] }
+            ] }""");
+        SceneFormat.LoadedScene loaded = new JsonSceneFormat().load(p);
+        assertEquals(1, loaded.scene().lights.size());
+    }
+
+    @Test
+    void unknownObjectTypeThrows(@TempDir Path tmp) throws IOException {
+        Path p = write(tmp, """
+            { "objects": [ { "type": "blob", "centre": [0,0,0] } ] }""");
+        JsonSceneFormat fmt = new JsonSceneFormat();
+        assertThrows(IllegalArgumentException.class, () -> fmt.load(p));
+    }
+
+    @Test
+    void unknownTextureThrows(@TempDir Path tmp) throws IOException {
+        Path p = write(tmp, """
+            { "objects": [
+              { "type": "sphere", "centre": [0,0,0], "radius": 1.0, "texture": "zigzag" }
+            ] }""");
+        JsonSceneFormat fmt = new JsonSceneFormat();
+        assertThrows(IllegalArgumentException.class, () -> fmt.load(p));
+    }
+
+    private static Path write(Path dir, String json) throws IOException {
+        Path p = dir.resolve("scene.json");
+        Files.writeString(p, json);
+        return p;
+    }
 }
