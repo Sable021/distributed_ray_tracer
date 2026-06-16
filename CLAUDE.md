@@ -1,82 +1,55 @@
 # Ray Tracer — Working Agreement
 
-Java 21 distributed ray tracer ported from a 2003-era C++ source. Output must stay **bit-identical** to the C++ reference render across four configs (`quick`, `dof`, `classic`, `cylinder`). The codebase is organised so that future change is cheap; preserve that.
+Java 21 distributed ray tracer ported from 2003-era C++. Output must stay **bit-identical** to the C++ reference across four configs (`quick`, `dof`, `classic`, `cylinder`). The codebase is built so future change is cheap; preserve that.
 
-## TDD is the default workflow — Red, Green, Refactor
+## TDD is the default workflow
 
-Every behaviour-changing edit follows this loop. No exceptions for "small" changes — small changes are exactly where regressions hide.
+Use the **`tdd` skill** ([.claude/skills/tdd/SKILL.md](.claude/skills/tdd/SKILL.md)) for every behaviour-changing edit. The loop:
 
-### Red — write the failing test first
+- **Red** — write a JUnit 5 test that fails for the right reason; confirm with `./gradlew test --tests FQCN`.
+- **Green** — minimum production code to pass it while keeping the suite green.
+- **Refactor** — clean up under green; if the bar goes red, revert, don't fix forward.
 
-- Add a JUnit 5 test that fails for the **right reason** (asserts the new behaviour, not a compile error).
-- Run it and confirm the failure: `./gradlew test --tests fully.qualified.TestClass`.
-- If you cannot make the test fail before writing production code, the test is wrong — fix the test, not the code.
-
-### Green — smallest code that passes
-
-- Write the **minimum** production code that turns the new test green and keeps every other test green.
-- Resist the urge to refactor mid-green. Hardcoded returns and duplicate code are acceptable here — the next step cleans them up.
-- Run the full suite: `./gradlew test`.
-
-### Refactor — clean up under a green bar
-
-- With the suite green, improve names, collapse duplication, extract helpers. Re-run `./gradlew test` after every meaningful change.
-- If a refactor turns the bar red, **revert immediately** — do not "fix forward" through a red suite. The test that broke is telling you the refactor changed behaviour.
-- Stop when the code reads cleanly. Don't speculate about future requirements.
-
-### What this looks like in practice here
-
-- Bug fix: reproduce the bug as a failing JUnit test, fix it, refactor.
-- New primitive / BRDF / light / texture / format / accelerator / sampler / strategy / observer / display: write the test against the interface contract first; the test compiles before the impl exists (use a fake or a `@Disabled` impl stub).
-- Performance change: pin behaviour with a unit test, add a separate benchmark/timing assertion if relevant, then optimise.
-- Pure refactor (no behaviour change): no new test required, but **all existing tests + the four golden image hashes must stay green** end-to-end.
-
-### Never bypass the safety net
-
-- Don't `@Disabled` a failing test to ship. Either fix the test or fix the code.
-- Don't delete a test because "it's testing the old behaviour" unless the behaviour itself is being intentionally removed and the user has confirmed that.
-- Don't run `git commit --no-verify` to skip hooks. If a hook fails, it's flagging a real problem.
+Every reachable logic flow gets at least one test — branches, edge/boundary cases, and unhappy paths, not just the happy path. Never `@Disabled` a failing test, delete a test for live behaviour, or `commit --no-verify`.
 
 ## Output parity is the integration test
 
-The four SHA-256 golden hashes are the contract with the C++ reference. They must not drift.
+The four SHA-256 golden hashes are the contract with the C++ reference.
 
 ```
-./gradlew verifyImage          # full-resolution gate, all four configs
-./gradlew run --args="--headless --quick"   # ~2s smoke for fast iteration
+./gradlew verifyImage                        # full-resolution gate, all four configs
+./gradlew run --args="--headless --quick"    # ~2s smoke for fast iteration
 ```
 
-If a golden hash shifts after your change, that is a **regression signal, not a baseline to update**. Investigate before doing anything else. Floating-point reorderings, RNG drift, and accidental dispatch changes all show up here first.
+A shifted hash is a **regression signal, not a baseline to update** — investigate first. Float reordering, RNG drift, and accidental dispatch changes surface here.
 
 ## Architectural invariants — preserve these
 
-The codebase has just been refactored across 7 phases for SOLID/KISS/DRY. The contracts below are load-bearing; new work should fit them, not erode them.
+Load-bearing contracts from the 7-phase SOLID/KISS/DRY refactor. Fit new work to them.
 
-### Package boundaries (directed graph, do not invert)
+### Package boundaries (directed, do not invert)
 
 ```
-io  →  render  →  { scene, shading, geom }
-                                      ↓
-                                    math
+io  →  render  →  { scene, shading, geom }  →  math
 ```
 
-- `geom` and `shading` may depend on `math`. Nothing else.
-- `scene` may depend on `geom`, `shading`, `math`.
-- `render` may depend on `scene`, `shading`, `geom`, `math`.
-- `io` sits on top — depends on `render`. Nothing in `render`/`scene`/`shading`/`geom`/`math` may import from `io`.
-- The composition root (`Main`, `Bootstrap`, `Display`, `Args`) lives in `com.raytracer` and wires everything together.
+- `geom`, `shading` depend only on `math`.
+- `scene` depends on `geom`, `shading`, `math`.
+- `render` depends on `scene`, `shading`, `geom`, `math`.
+- `io` depends on `render`; nothing below `io` imports from it.
+- The composition root (`Main`, `Bootstrap`, `Display`, `Args`) lives in `com.raytracer` and wires it together.
 
 ### `double[3]` no-allocation contract
 
-Hot paths use caller-owned `double[3]` scratch arrays as out-parameters. Do not introduce a `Vec3` class on the ray-tracing path. New interface methods on `Primitive`, `BRDF`, `Light`, `Texture`, `Accelerator`, `RenderStrategy`, `PathIntegrator` follow the same pattern: pass the output array in, mutate it, return `void` (or a scalar like `double` for `intersect`).
+Hot paths use caller-owned `double[3]` scratch arrays as out-parameters — no `Vec3` class on the ray-tracing path. New methods on `Primitive`, `BRDF`, `Light`, `Texture`, `Accelerator`, `RenderStrategy`, `PathIntegrator` pass the output array in, mutate it, return `void` (or a scalar for `intersect`).
 
 ### Sealed hierarchies
 
-`Primitive` (`Sphere | Plane | Triangle | Cylinder | BoundedQuad`) and `Light` (`PointLight | AreaLight`) are sealed. Adding a new variant means adding it to the `permits` clause and exhaustively handling it everywhere `switch` pattern-matches on it. Prefer adding a new strategy/BRDF/texture (open extension points) over a new sealed variant.
+`Primitive` (`Sphere | Plane | Triangle | Cylinder | BoundedQuad`) and `Light` (`PointLight | AreaLight`) are sealed. A new variant means updating `permits` and every exhaustive `switch`. Prefer a new strategy/BRDF/texture (open extension points) over a new sealed variant.
 
 ### Named owners for C++ quirks
 
-Every C++ behaviour quirk has exactly one owner; do not reintroduce these in another file.
+Each quirk has exactly one owner; don't reintroduce it elsewhere. To "clean up" any of these, stop and confirm with the user — they exist solely to keep the hashes stable.
 
 | Quirk | Owner |
 |---|---|
@@ -84,35 +57,32 @@ Every C++ behaviour quirk has exactly one owner; do not reintroduce these in ano
 | `j < 15` point-light shadow caster scan limit | `shading/PointLight.java` |
 | Perlin noise seed `12345L` | `shading/PerlinNoise.java` |
 | `*7` stratified sampler scrambler | `render/StratifiedSampler.java` |
-| `Math.max(0, V·R)` Phong clamp (C `pow(0,n)` returned 0; Java NaN) | `shading/PhongBRDF.java` |
+| `Math.max(0, V·R)` Phong clamp (C `pow(0,n)`=0; Java NaN) | `shading/PhongBRDF.java` |
 | Per-row `0x9E3779B97F4A7C15L` reseed prime | `render/Renderer.java` |
-
-If you are tempted to "clean up" one of these, stop and confirm with the user — they exist solely to keep the SHA-256 hashes stable.
 
 ## Build & run
 
-- Java 21 JDK on PATH; everything else (Gradle, JavaFX) downloads via the wrapper.
-- **Always prefer `./gradlew`** over the system Gradle. The system install is at `C:\Gradle\bin\gradle` (not on PATH), and the wrapper pins the version this repo expects.
+Java 21 JDK on PATH; the wrapper downloads Gradle and JavaFX. **Always use `./gradlew`**, not the system Gradle (`C:\Gradle\bin\gradle`, unpinned).
+
 - `./gradlew test` — full JUnit 5 suite.
 - `./gradlew run --args="--headless --quick"` — fastest sanity check (~2s).
-- `./gradlew verifyImage` — full-resolution four-config golden gate.
-- `./gradlew test jacocoTestReport changeabilityIndex` — ISO 25010 Changeability Index (`[1,100]`); see [docs/changeability-index.md](docs/changeability-index.md).
+- `./gradlew verifyImage` — four-config golden gate.
+- `./gradlew test jacocoTestReport changeabilityIndex` — ISO 25010 Changeability Index; see [docs/changeability-index.md](docs/changeability-index.md).
 
-This repo runs on Windows + PowerShell. When chaining commands, use `;` and `if ($?) { ... }` — `&&` does not exist in Windows PowerShell 5.1. Bash is also available via the Bash tool.
+Windows + PowerShell: chain with `;` and `if ($?) { ... }` — there is no `&&` in PowerShell 5.1. Bash is available via the Bash tool.
 
 ## Code style
 
-- No comments unless the **why** is non-obvious (a hidden constraint, a C++ quirk being preserved, a workaround for a known bug). Well-named identifiers describe **what**.
-- No multi-paragraph docstrings. One short line is the limit.
-- No emojis in code or commits unless the user explicitly asks.
-- Don't add error handling, fallbacks, or validation for impossible scenarios. Trust internal callers; validate only at boundaries (CLI args, scene file parsing, image writes).
-- Don't introduce abstractions for hypothetical future requirements. Three similar lines beats a premature abstraction.
-- Tests use plain JUnit 5 assertions (`assertEquals`, `assertTrue`). No AssertJ. Use **fakes** (recording `RenderDisplay`, recording `PathIntegrator`) over mocks.
+- No comments unless the **why** is non-obvious (hidden constraint, preserved C++ quirk, known-bug workaround). Names describe the **what**.
+- One-line docstrings at most.
+- No emojis in code or commits unless asked.
+- No error handling or validation for impossible scenarios. Trust internal callers; validate only at boundaries (CLI args, scene parsing, image writes).
+- No abstractions for hypothetical futures. Three similar lines beats a premature abstraction.
+- Tests: plain JUnit 5 assertions, no AssertJ, **fakes** over mocks.
 
 ## Commits
 
-- Commit per logical change with a green test suite **and** matching golden hashes.
-- Every commit must keep the Changeability Index **above 90**. Verify with `./gradlew test jacocoTestReport changeabilityFloor -Pci.floor=90`; if it drops below 90, fix the regression before committing — do not lower the floor.
-- Reference the phase or feature in the subject. Body explains the **why** when non-obvious.
-- Never `--amend` a pushed commit. Never `--no-verify`.
-- Never push without explicit user confirmation.
+- One logical change per commit, with a green suite **and** matching golden hashes.
+- Keep the Changeability Index **above 90**: `./gradlew test jacocoTestReport changeabilityFloor -Pci.floor=90`. If it drops, fix the regression — don't lower the floor.
+- Reference the phase or feature in the subject; explain the **why** in the body when non-obvious.
+- Never `--amend` a pushed commit, never `--no-verify`, never push without explicit confirmation.
