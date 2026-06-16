@@ -1,35 +1,29 @@
 # Changeability Index
 
-A single number in `[1, 100]` that measures how easily this codebase absorbs change,
-derived from the nine product-quality characteristics of **ISO/IEC 25010:2023** and
-weighted by each characteristic's contribution to ease-of-change. 100 is a SOLID-ideal
-codebase; 1 is the worst case. It is fully automated — every indicator is computed from
-source, test, and coverage artefacts — so the score is comparable across commits and drift
-is visible.
+A single `[1, 100]` score for how easily this codebase absorbs change, derived from the nine
+characteristics of **ISO/IEC 25010:2023**, weighted by each one's contribution to ease-of-change
+(100 = SOLID-ideal, 1 = worst). Fully automated from source, test, and coverage artefacts, so
+it's comparable across commits and drift is visible.
 
 ```
 ./gradlew test jacocoTestReport changeabilityIndex   # full computation (regenerates coverage)
 ./gradlew changeabilityIndex                          # reuses the last JaCoCo report
-./gradlew changeabilityFloor -Pci.floor=80            # gate: fail the build below the floor
+./gradlew changeabilityFloor -Pci.floor=80            # gate: fail below the floor
 ```
 
-Outputs land in `build/reports/changeability/`:
+Outputs land in `build/reports/changeability/`: `index.json` (machine-readable scores),
+`report.md` (breakdown), and a console summary table plus total.
 
-- `index.json` — machine-readable scores (attributes + indicators).
-- `report.md` — human-readable breakdown.
-- console — a nine-row summary table plus the grand total.
+The `main` snapshot is [`tools/changeability/baseline.json`](../tools/changeability/baseline.json)
+(**CI ≈ 95.3**); diff `index.json` against it. A drop below ~85 unexplained in the PR body is worth reviewing.
 
-The committed snapshot of `main` lives at [`tools/changeability/baseline.json`](../tools/changeability/baseline.json)
-(**CI ≈ 95.3**); diff future `index.json` against it to spot regressions. A drop below ~85
-without an explicit justification in the PR body is a signal worth reviewing.
-
-> `changeabilityIndex` has no hard dependency on `jacocoTestReport` (so re-runs stay fast),
-> but it `mustRunAfter` it — when both are on the command line, coverage is read fresh. If no
-> report exists, indicators 5.5 and 7.7 score 0 and a warning is printed.
+> `changeabilityIndex` has no hard dependency on `jacocoTestReport` (re-runs stay fast) but
+> `mustRunAfter` it, so coverage is fresh when both are on the command line. With no report,
+> indicators 5.5 and 7.7 score 0 and a warning prints.
 
 ## Formula
 
-Each attribute *A_j* aggregates its indicators *Iᵢ* by their within-attribute weight *wᵢ*:
+Each attribute *A_j* aggregates its indicators by within-attribute weight *wᵢ*:
 
 ```
 A_j = ( Σ fᵢ(mᵢ) · wᵢ ) / ( Σ wᵢ )
@@ -130,29 +124,24 @@ Counts are over `src/main/java/` unless noted. Within-attribute weights in brack
 
 ## Why line and branch coverage live in different attributes
 
-**Line** coverage (breadth — is the code exercised at all?) is a Faultlessness signal under
-**Reliability** (5.5). **Branch** coverage (depth — is every decision path exercised?) is a
-Testability signal under **Maintainability** (7.7). Both read the same `jacocoTestReport.xml`,
-so the marginal cost is one plugin and one task.
+**Line** coverage (breadth — is the code run at all?) is a Faultlessness signal under
+**Reliability** (5.5). **Branch** coverage (depth — is every decision path run?) is a Testability
+signal under **Maintainability** (7.7). Both read the same `jacocoTestReport.xml`.
 
-## Notes on faithful-but-pragmatic indicators
+## Notes on pragmatic indicators
 
-- **1.2 / 2.1** — true golden-hash parity and a timed smoke render require running renders,
-  which is too slow for a routine gauge. Both use fast static proxies (gate presence / fast-path
-  presence); the real enforcement is `./gradlew verifyImage`, run separately.
-- **2.3** — the original plan counted `new double[` inside `trace()`, but that method
-  legitimately allocates local `double[3]` scratch. The contract that actually matters
-  (per `CLAUDE.md`) is that hot-path **interface** methods use caller-owned out-params rather
-  than returning fresh arrays, so the indicator measures that instead.
-- **9.3** — uses the two machine-checkable distinctive constants as representatives of the
-  quirk-owner table; the other quirks (`j < 15`, `*7`) are too lexically common to grep
-  reliably.
+- **1.2 / 2.1** — true golden-hash parity and a timed render are too slow for a routine gauge, so
+  both use static proxies (gate / fast-path presence). Real enforcement is `./gradlew verifyImage`.
+- **2.3** — counts caller-owned out-params on hot-path **interface** methods, not `new double[`
+  inside `trace()` (which legitimately allocates local `double[3]` scratch).
+- **9.3** — uses the two machine-checkable quirk constants as representatives; the others
+  (`j < 15`, `*7`) are too lexically common to grep reliably.
 
 ## Extending the index
 
-Indicators and weights live in `AttributeRegistry.kt`; raw extraction in `MetricsCollector.kt`,
-`TestResultsReader.kt`, `CoverageReader.kt`; the source→measure mapping in
-`IndicatorEvaluator.kt`; aggregation in `Aggregator.kt`; rendering in `ReportWriter.kt`. All live
-in `buildSrc/` and are unit-tested (`./gradlew :buildSrc:test`). Add an indicator by registering
-it, wiring its measure, and pinning the scoring with a test — the registry invariant
-(`Σ W_j = 15`, every indicator evaluated) is enforced by the existing suite.
+Indicators and weights: `AttributeRegistry.kt`. Raw extraction: `MetricsCollector.kt`,
+`TestResultsReader.kt`, `CoverageReader.kt`. Source→measure: `IndicatorEvaluator.kt`. Aggregation:
+`Aggregator.kt`. Rendering: `ReportWriter.kt`. All in `buildSrc/`, unit-tested
+(`./gradlew :buildSrc:test`). Add an indicator by registering it, wiring its measure, and pinning
+the scoring with a test — the registry invariant (`Σ W_j = 15`, every indicator evaluated) is
+enforced by the suite.
