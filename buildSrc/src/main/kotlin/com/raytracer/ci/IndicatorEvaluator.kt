@@ -124,7 +124,7 @@ object IndicatorEvaluator {
             "5.2" to measure(testLoc.toDouble() / mainLoc, ratioToTarget(testLoc.toDouble() / mainLoc, 0.5)),
             "5.3" to measure(validationCount.toDouble(), ratioToTarget(validationCount.toDouble(), 8.0)),
             "5.4" to measure(bool(gatePresent), binary(gatePresent)),
-            "5.5" to measure(cov.lineRatio, ratioToTarget(cov.lineRatio, 0.70)),
+            "5.5" to measure(cov.lineRatio, ratioToTarget(cov.lineRatio, 1.00)),
             // 6. Security
             "6.1" to measure(fileSinkViolations.toDouble(), penaltyPerCount(fileSinkViolations, 50.0)),
             "6.2" to measure(mathRandomCount.toDouble(), binary(mathRandomCount == 0)),
@@ -136,7 +136,7 @@ object IndicatorEvaluator {
             "7.4" to measure(interfaceRatio, ratioToTarget(interfaceRatio, 0.20)),
             "7.5" to measure(branchingPerMethod, piecewiseLinear(branchingPerMethod, 3.0, 12.0)),
             "7.6" to measure(testDensity, ratioToTarget(testDensity, 1.5)),
-            "7.7" to measure(cov.branchRatio, ratioToTarget(cov.branchRatio, 0.60)),
+            "7.7" to measure(cov.branchRatio, ratioToTarget(cov.branchRatio, 0.90)),
             // 8. Flexibility
             "8.1" to measure(multiImplRatio(interfaceNames, impls), ratioToTarget(multiImplRatio(interfaceNames, impls), 0.5)),
             "8.2" to measure(extensionPoints.toDouble(), ratioToTarget(extensionPoints.toDouble(), 10.0)),

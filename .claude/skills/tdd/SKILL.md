@@ -35,7 +35,7 @@ Every reachable logic flow must be exercised by **at least one** unit test. This
 - **Edge & boundary cases** — zero, empty, negative, off-by-one limits, parallel/degenerate geometry, `t = 0` / EPSILON self-intersection, critical-angle TIR, clamps (`Math.max(0, …)`).
 - **Unhappy paths** — invalid CLI flags, malformed scene JSON, unknown formats, miss/`-1.0` returns, validation that flips `printUsage` or throws at a boundary.
 
-JaCoCo line ≥ 70 % and branch ≥ 60 % are the floor the Changeability Index enforces, not the goal — a flow can be "covered" by line count yet have an untested branch. Genuinely unreachable code (defensive impossible-state guards) and the JavaFX/CLI entry shell (`Main`, `Display`, `JavaFxRenderDisplay`) are exempt; everything with logic is not.
+JaCoCo line ≥ 100 % and branch ≥ 90 % are the floor the Changeability Index enforces, not the goal — a flow can be "covered" by line count yet have an untested branch. Genuinely unreachable code (defensive impossible-state guards) and the JavaFX/CLI entry shell (`Main`, `Display`, `JavaFxRenderDisplay`) are exempt; everything with logic is not.
 
 ## Recipes
 

@@ -31,14 +31,15 @@ class IndicatorEvaluatorTest {
         IndicatorEvaluator.evaluate(inputs()).getValue(id).score
 
     @Test
-    fun lineCoverageHitsTargetAtSeventyPercent() {
-        assertEquals(100.0, scoreOf("5.5"), eps)
+    fun lineCoverageBelowTargetScoresProportionally() {
+        // 0.70 / 1.00 target = 70
+        assertEquals(70.0, scoreOf("5.5"), eps)
     }
 
     @Test
     fun branchCoverageBelowTargetScoresProportionally() {
-        // 0.30 / 0.60 target = 50
-        assertEquals(50.0, scoreOf("7.7"), eps)
+        // 0.30 / 0.90 target = 33.33
+        assertEquals(100.0 / 3.0, scoreOf("7.7"), eps)
     }
 
     @Test

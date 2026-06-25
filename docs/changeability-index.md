@@ -90,7 +90,7 @@ Counts are over `src/main/java/` unless noted. Within-attribute weights in brack
 - **5.3** Boundary validation density `[2]` — `throw new Illegal*Exception` + `printUsage`
   branches, target 8.
 - **5.4** Regression gate present `[2]` — `verifyImage` exists.
-- **5.5** JaCoCo **line** coverage `[3]` — target ≥ 70 %.
+- **5.5** JaCoCo **line** coverage `[3]` — target ≥ 100 %.
 
 ### 6. Security (W=1)
 - **6.1** File I/O via `ImageWriter` boundary `[1]` — `FileOutputStream`/`Files.write` outside
@@ -106,7 +106,7 @@ Counts are over `src/main/java/` unless noted. Within-attribute weights in brack
 - **7.4** Interface-to-type ratio `[2]` — target ≥ 0.20.
 - **7.5** Branching-density proxy `[2]` — branch keywords per method, 100 at ≤ 3, 0 at 12.
 - **7.6** Test method density `[3]` — `@Test` per production type, target ≥ 1.5.
-- **7.7** JaCoCo **branch** coverage `[3]` — target ≥ 60 %.
+- **7.7** JaCoCo **branch** coverage `[3]` — target ≥ 90 %.
 
 ### 8. Flexibility (W=3)
 - **8.1** Multi-impl interface ratio `[3]` — interfaces with ≥ 2 impls, target ≥ 0.5.
