@@ -59,7 +59,7 @@ tasks.named<JacocoReport>("jacocoTestReport") {
 // ---- Changeability Index (ISO/IEC 25010) ------------------------------------
 // Computes a [1,100] ease-of-change score from source, test, and JaCoCo artefacts.
 //   ./gradlew test jacocoTestReport changeabilityIndex   # full computation
-//   ./gradlew changeabilityFloor -Pci.floor=80           # gate the build on a minimum
+//   ./gradlew changeabilityFloor -Pci.floor=90           # gate the build on a minimum
 val changeabilityOutput = layout.buildDirectory.dir("reports/changeability")
 
 tasks.register<ChangeabilityIndexTask>("changeabilityIndex") {
@@ -68,7 +68,7 @@ tasks.register<ChangeabilityIndexTask>("changeabilityIndex") {
     projectRoot.set(layout.projectDirectory)
     outputDir.set(changeabilityOutput)
     enforceFloor.set(false)
-    floor.set(80.0)
+    floor.set(90.0)
     // No hard dependency (keeps the task fast on re-runs), but when coverage IS requested
     // in the same invocation it must run first so 5.5/7.7 read a fresh report.
     mustRunAfter(tasks.named("jacocoTestReport"))
@@ -76,11 +76,11 @@ tasks.register<ChangeabilityIndexTask>("changeabilityIndex") {
 
 tasks.register<ChangeabilityIndexTask>("changeabilityFloor") {
     group = "verification"
-    description = "Fail the build if the Changeability Index drops below the floor (default 80, override with -Pci.floor)."
+    description = "Fail the build if the Changeability Index drops below the floor (default 90, override with -Pci.floor)."
     projectRoot.set(layout.projectDirectory)
     outputDir.set(changeabilityOutput)
     enforceFloor.set(true)
-    floor.set((project.findProperty("ci.floor") as String?)?.toDouble() ?: 80.0)
+    floor.set((project.findProperty("ci.floor") as String?)?.toDouble() ?: 90.0)
     mustRunAfter(tasks.named("jacocoTestReport"))
 }
 
