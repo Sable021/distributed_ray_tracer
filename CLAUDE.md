@@ -18,7 +18,7 @@ The four SHA-256 golden hashes are the contract with the C++ reference. `./gradl
 
 ## Architectural invariants — preserve these
 
-Load-bearing contracts from the 7-phase SOLID/KISS/DRY refactor. Fit new work to them.
+Load-bearing contracts from the 7-phase SOLID/KISS/DRY refactor. Fit new work to them; the **`extend-renderer` skill** ([.claude/skills/extend-renderer/SKILL.md](.claude/skills/extend-renderer/SKILL.md)) carries the mechanics for adding a primitive/BRDF/light/texture/format/sampler/strategy.
 
 ### Package boundaries (directed, do not invert)
 
@@ -34,11 +34,11 @@ io  →  render  →  { scene, shading, geom }  →  math
 
 ### `double[3]` no-allocation contract
 
-Hot paths use caller-owned `double[3]` scratch arrays as out-parameters — no `Vec3` class on the ray-tracing path. New methods on `Primitive`, `BRDF`, `Light`, `Texture`, `Accelerator`, `RenderStrategy`, `PathIntegrator` pass the output array in, mutate it, return `void` (or a scalar for `intersect`).
+Hot-path methods take caller-owned `double[3]` scratch arrays as out-parameters and mutate them, returning `void` (or a scalar for `intersect`) — no `Vec3` on the ray-tracing path.
 
 ### Sealed hierarchies
 
-`Primitive` (`Sphere | Plane | Triangle | Cylinder | BoundedQuad`) and `Light` (`PointLight | AreaLight`) are sealed. A new variant means updating `permits` and every exhaustive `switch`. Prefer a new strategy/BRDF/texture (open extension points) over a new sealed variant.
+`Primitive` (`Sphere | Plane | Triangle | Cylinder | BoundedQuad`) and `Light` (`PointLight | AreaLight`) are sealed. Prefer a new strategy/BRDF/texture (open extension point) over a new sealed variant; a new variant means updating `permits` and every exhaustive `switch`.
 
 ### Named owners for C++ quirks
 
