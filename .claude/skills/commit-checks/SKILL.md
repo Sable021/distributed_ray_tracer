@@ -20,6 +20,10 @@ On Windows + PowerShell there is no `&&`; chain with `;` and guard: `./gradlew v
 - **Index below 90?** Fix the regression. Never lower `-Pci.floor` to pass.
 - **Pure docs/markdown change** (no `.java`, build config, or scene file touched)? Output parity and the index are structurally unaffected — the test suite is the only meaningful gate. Note that reasoning rather than skipping verification blindly.
 
+## Branching — trunk-based
+
+All work lands on `main`. No feature branches; commit directly to trunk and keep its history linear. Push only with explicit confirmation (below).
+
 ## Scope
 
 One logical change per commit. Don't bundle an unrelated refactor with a feature. If a refactor and a behaviour change both apply, split them — the `tdd` loop naturally produces this separation.
@@ -35,5 +39,5 @@ One logical change per commit. Don't bundle an unrelated refactor with a feature
 
 - Never `git commit --no-verify`. A failing gate is a real problem to fix, not to bypass.
 - Never `--amend` a pushed commit. Add a new commit instead.
-- Never push without **explicit** confirmation from the user. If on the default branch, branch first.
+- Never push without **explicit** confirmation from the user.
 - Never `@Disabled` a failing test, delete a test for live behaviour, or weaken the Changeability floor to get green.

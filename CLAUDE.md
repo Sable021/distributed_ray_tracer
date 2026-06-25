@@ -78,4 +78,4 @@ Windows + PowerShell: chain with `;` and `if ($?) { ... }` — there is no `&&` 
 
 ## Commits
 
-Use the **`commit-checks` skill** ([.claude/skills/commit-checks/SKILL.md](.claude/skills/commit-checks/SKILL.md)) for the full gate sequence and message conventions. Non-negotiable: one logical change per commit with a green suite **and** matching golden hashes; keep the Changeability Index **above 90** (fix the regression, don't lower the floor); never `--amend` a pushed commit, never `--no-verify`, never push without explicit confirmation.
+**Trunk-based development:** all work lands on `main`; no feature branches, keep trunk history linear. Use the **`commit-checks` skill** ([.claude/skills/commit-checks/SKILL.md](.claude/skills/commit-checks/SKILL.md)) for the full gate sequence and message conventions. Non-negotiable: one logical change per commit with a green suite **and** matching golden hashes; keep the Changeability Index **above 90** (fix the regression, don't lower the floor); never `--amend` a pushed commit, never `--no-verify`, never push without explicit confirmation.
