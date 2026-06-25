@@ -14,14 +14,7 @@ Every reachable logic flow gets at least one test — branches, edge/boundary ca
 
 ## Output parity is the integration test
 
-The four SHA-256 golden hashes are the contract with the C++ reference.
-
-```
-./gradlew verifyImage                        # full-resolution gate, all four configs
-./gradlew run --args="--headless --quick"    # ~2s smoke for fast iteration
-```
-
-A shifted hash is a **regression signal, not a baseline to update** — investigate first. Float reordering, RNG drift, and accidental dispatch changes surface here.
+The four SHA-256 golden hashes are the contract with the C++ reference. `./gradlew verifyImage` is the gate; a shifted hash is a **regression signal, not a baseline to update**. Use the **`output-parity` skill** ([.claude/skills/output-parity/SKILL.md](.claude/skills/output-parity/SKILL.md)) to investigate drift (float reorder, RNG drift, dispatch change) or to rebaseline intentionally.
 
 ## Architectural invariants — preserve these
 
