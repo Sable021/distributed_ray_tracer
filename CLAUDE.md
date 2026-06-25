@@ -75,7 +75,4 @@ Windows + PowerShell: chain with `;` and `if ($?) { ... }` — there is no `&&` 
 
 ## Commits
 
-- One logical change per commit, with a green suite **and** matching golden hashes.
-- Keep the Changeability Index **above 90**: `./gradlew test jacocoTestReport changeabilityFloor -Pci.floor=90`. If it drops, fix the regression — don't lower the floor.
-- Reference the phase or feature in the subject; explain the **why** in the body when non-obvious.
-- Never `--amend` a pushed commit, never `--no-verify`, never push without explicit confirmation.
+Use the **`commit-checks` skill** ([.claude/skills/commit-checks/SKILL.md](.claude/skills/commit-checks/SKILL.md)) for the full gate sequence and message conventions. Non-negotiable: one logical change per commit with a green suite **and** matching golden hashes; keep the Changeability Index **above 90** (fix the regression, don't lower the floor); never `--amend` a pushed commit, never `--no-verify`, never push without explicit confirmation.
