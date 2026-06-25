@@ -18,7 +18,7 @@ On Windows + PowerShell there is no `&&`; chain with `;` and guard: `./gradlew v
 
 - **Hash shifted?** Stop — that's a regression signal. Use the **`output-parity`** skill to investigate; do not rebaseline to make the gate pass.
 - **Index below 90?** Fix the regression. Never lower `-Pci.floor` to pass.
-- **Pure docs/markdown change** (no `src/main/java`, build config, or scene file touched)? Output parity and the index are structurally unaffected — the test suite is the only meaningful gate. Note that reasoning rather than skipping verification blindly.
+- **Pure docs/markdown change** (no `.java`, build config, or scene file touched)? Output parity and the index are structurally unaffected — the test suite is the only meaningful gate. Note that reasoning rather than skipping verification blindly.
 
 ## Scope
 
