@@ -2,15 +2,18 @@
 
 Java 21 distributed ray tracer ported from 2003-era C++. Output must stay **bit-identical** to the C++ reference across four configs (`quick`, `dof`, `classic`, `cylinder`). The codebase is built so future change is cheap; preserve that.
 
+## Skills — invoke when the task matches
+
+- **`tdd`** ([.claude/skills/tdd/SKILL.md](.claude/skills/tdd/SKILL.md)) — every behaviour-changing edit: Red/Green/Refactor and the full-coverage standard.
+- **`output-parity`** ([.claude/skills/output-parity/SKILL.md](.claude/skills/output-parity/SKILL.md)) — golden-hash drift, the four configs, `regenGoldens`.
+- **`extend-renderer`** ([.claude/skills/extend-renderer/SKILL.md](.claude/skills/extend-renderer/SKILL.md)) — adding a primitive/BRDF/light/texture/format/sampler/strategy.
+- **`commit-checks`** ([.claude/skills/commit-checks/SKILL.md](.claude/skills/commit-checks/SKILL.md)) — pre-commit gate sequence and message conventions.
+
+Library packages (`geom`, `shading`, `render`, `io`, `scene`) and `buildSrc` each carry a nested `CLAUDE.md` with their boundary rule and any quirk owners.
+
 ## TDD is the default workflow
 
-Use the **`tdd` skill** ([.claude/skills/tdd/SKILL.md](.claude/skills/tdd/SKILL.md)) for every behaviour-changing edit. The loop:
-
-- **Red** — write a JUnit 5 test that fails for the right reason; confirm with `./gradlew test --tests FQCN`.
-- **Green** — minimum production code to pass it while keeping the suite green.
-- **Refactor** — clean up under green; if the bar goes red, revert, don't fix forward.
-
-Every reachable logic flow gets at least one test — branches, edge/boundary cases, and unhappy paths, not just the happy path. Never `@Disabled` a failing test, delete a test for live behaviour, or `commit --no-verify`.
+Drive every behaviour-changing edit through the **`tdd` skill** (Red → Green → Refactor). Every reachable logic flow gets at least one test — branches, edge/boundary cases, and unhappy paths, not just the happy path. Never `@Disabled` a failing test, delete a test for live behaviour, or `commit --no-verify`.
 
 ## Output parity is the integration test
 
@@ -42,7 +45,7 @@ Hot-path methods take caller-owned `double[3]` scratch arrays as out-parameters 
 
 ### Named owners for C++ quirks
 
-Each quirk has exactly one owner; don't reintroduce it elsewhere. To "clean up" any of these, stop and confirm with the user — they exist solely to keep the hashes stable.
+Each quirk has exactly one owner; don't reintroduce it elsewhere. To "clean up" any of these, stop and confirm with the user — they exist solely to keep the hashes stable. Each library package also repeats its own owners in a nested `CLAUDE.md`.
 
 | Quirk | Owner |
 |---|---|
@@ -51,7 +54,7 @@ Each quirk has exactly one owner; don't reintroduce it elsewhere. To "clean up" 
 | Perlin noise seed `12345L` | `shading/PerlinNoise.java` |
 | `*7` stratified sampler scrambler | `render/StratifiedSampler.java` |
 | `Math.max(0, V·R)` Phong clamp (C `pow(0,n)`=0; Java NaN) | `shading/PhongBRDF.java` |
-| Per-row `0x9E3779B97F4A7C15L` reseed prime | `render/Renderer.java` |
+| Per-row `0x9E3779B97F4A7C15L` reseed prime | `Renderer.java` (composition root) |
 
 ## Build & run
 
